@@ -41,6 +41,7 @@
     "p-map": "^5.5.0",
     "p-throttle": "^5.0.0",
     "twitter-api-sdk": "^1.2.1",
+    "url-regex": "^5.0.0",
     "wink-eng-lite-web-model": "^1.4.3",
     "wink-nlp": "^1.12.3"
   },

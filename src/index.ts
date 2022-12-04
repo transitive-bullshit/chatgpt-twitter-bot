@@ -2,14 +2,20 @@ import { ChatGPTAPI } from 'chatgpt'
 import delay from 'delay'
 import pMap from 'p-map'
 import { Client, auth } from 'twitter-api-sdk'
+import urlRegex from 'url-regex'
 
 import * as types from './types'
-import config, { enableRedis } from './config'
+import config, {
+  enableRedis,
+  twitterBotHandle,
+  twitterBotHandleL
+} from './config'
 import { keyv } from './keyv'
 import {
   createTwitterThreadForChatGPTResponse,
   getChatGPTResponse,
-  getTweetsFromResponse
+  getTweetsFromResponse,
+  pick
 } from './utils'
 
 /**
@@ -35,7 +41,7 @@ async function respondToNewMentions({
   console.log('fetching mentions since', sinceMentionId || 'forever')
 
   function updateSinceMentionId(tweetId: string) {
-    if (!tweetId) {
+    if (dryRun || !tweetId) {
       return
     }
 
@@ -83,17 +89,17 @@ async function respondToNewMentions({
     'tweet.fields': [
       'created_at',
       'public_metrics',
-      'source',
       'conversation_id',
       'in_reply_to_user_id',
       'referenced_tweets'
     ],
-    max_results: 10,
+    max_results: 100,
     since_id: sinceMentionId
   })
 
   let mentions = []
   let users = {}
+  let tweets = {}
 
   for await (const page of mentionsQuery) {
     if (page.data?.length) {
@@ -105,11 +111,144 @@ async function respondToNewMentions({
         users[user.id] = user
       }
     }
+
+    if (page.includes?.tweets?.length) {
+      for (const tweet of page.includes.tweets) {
+        tweets[tweet.id] = tweet
+      }
+    }
   }
 
-  console.log(`processing ${mentions.length} tweet mentions`)
+  const rUrl = urlRegex()
+
+  function getPrompt(text?: string): string {
+    // strip usernames
+    let prompt = text
+      .replace(twitterBotHandleL, '')
+      .replace(twitterBotHandle, '')
+      .replace(/^ *@[a-zA-Z0-9_]+/g, '')
+      .replace(/^ *@[a-zA-Z0-9_]+/g, '')
+      .replace(/^ *@[a-zA-Z0-9_]+/g, '')
+      .replace(/^ *@[a-zA-Z0-9_]+/g, '')
+      .replace(rUrl, '')
+      .trim()
+
+    // fix bug in plaintext version for code blocks
+    prompt = prompt.replace('\n\nCopy code\n\n', '\n\n')
+
+    return prompt
+  }
+
+  function getNumMentionsInText(
+    text?: string,
+    { isReply }: { isReply?: boolean } = {}
+  ) {
+    const prefixText = isReply
+      ? (text.match(/^(\@[a-zA-Z0-9_]+\s+)+/g) || [])[0]
+      : text
+    if (!prefixText) {
+      return {
+        usernames: [],
+        numMentions: 0
+      }
+    }
+
+    const usernames = (prefixText.match(/\@[a-zA-Z0-9_]+\s/g) || []).map(
+      (u: string) => u.trim().toLowerCase()
+    )
+    let numMentions = 0
+
+    for (const username of usernames) {
+      if (username === twitterBotHandleL) {
+        numMentions++
+      }
+    }
+
+    return {
+      numMentions,
+      usernames
+    }
+  }
+
+  mentions = mentions.filter((mention) => {
+    const text = mention.text
+    const repliedToTweetRef = mention.referenced_tweets?.find(
+      (t) => t.type === 'replied_to'
+    )
+    const isReply = !!repliedToTweetRef
+    const repliedToTweet = repliedToTweetRef
+      ? tweets[repliedToTweetRef.id]
+      : null
+    if (repliedToTweet) {
+      repliedToTweet.prompt = getPrompt(repliedToTweet.text)
+      const subMentions = getNumMentionsInText(repliedToTweet.text, {
+        isReply: !!repliedToTweet.referenced_tweets?.find(
+          (t) => t.type === 'replied_to'
+        )
+      })
+      repliedToTweet.numMentions = subMentions.numMentions
+    }
+
+    mention.prompt = getPrompt(text)
+
+    if (!mention.prompt) {
+      return false
+    }
+
+    const { numMentions, usernames } = getNumMentionsInText(text)
+
+    if (
+      numMentions > 0 &&
+      usernames[usernames.length - 1] === twitterBotHandleL
+    ) {
+      if (isReply && repliedToTweet.numMentions >= numMentions) {
+        console.log('ignoring mention 0', mention, {
+          repliedToTweet,
+          numMentions
+        })
+
+        updateSinceMentionId(mention.id)
+        return false
+      } else if (numMentions === 1) {
+        if (isReply && mention.in_reply_to_user_id === user.id) {
+          console.log('ignoring mention 1', mention, {
+            numMentions
+          })
+
+          updateSinceMentionId(mention.id)
+          return false
+        }
+      }
+    } else {
+      console.log('ignoring mention 2', pick(mention, 'text', 'id'), {
+        numMentions
+      })
+
+      updateSinceMentionId(mention.id)
+      return false
+    }
+
+    console.log(JSON.stringify(mention, null, 2), {
+      numMentions,
+      repliedToTweet
+    })
+    // console.log(pick(mention, 'id', 'text', 'prompt'), { numMentions })
+    return true
+  })
+
+  console.log(
+    `processing ${mentions.length} tweet mentions`,
+    mentions.map((mention) => ({
+      id: mention.id,
+      text: mention.text,
+      prompt: mention.prompt
+    }))
+  )
+
   if (earlyExit) {
-    console.log(JSON.stringify(mentions, null, 2))
+    if (mentions.length > 0) {
+      console.log('mentions', JSON.stringify(mentions, null, 2))
+    }
     return null
   }
 
@@ -118,9 +257,7 @@ async function respondToNewMentions({
     await pMap(
       mentions,
       async (mention): Promise<types.ChatGPTInteraction> => {
-        const { text } = mention
-        const prompt = text?.replace(/@ChatGPTBot/g, '').trim()
-        const promptTweetId = mention.id
+        const { text, prompt, id: promptTweetId } = mention
         if (!prompt) {
           return { promptTweetId, prompt, error: 'empty prompt' }
         }
@@ -177,7 +314,7 @@ async function respondToNewMentions({
   ).filter(Boolean)
 
   for (const res of results) {
-    if (!dryRun && !res.error) {
+    if (!res.error) {
       updateSinceMentionId(res.promptTweetId)
     }
   }
@@ -210,10 +347,14 @@ async function main() {
     token: authToken
   })
 
-  console.log('refreshing twitter access token')
-  const { token } = await authClient.refreshAccessToken()
-  config.set('refreshToken', token.refresh_token)
-  // console.debug(token)
+  async function refreshTwitterAuthToken() {
+    console.log('refreshing twitter access token')
+    const { token } = await authClient.refreshAccessToken()
+    config.set('refreshToken', token.refresh_token)
+    return token
+  }
+
+  await refreshTwitterAuthToken()
 
   const twitter = new Client(authClient)
   const { data: user } = await twitter.users.findMyUser()
@@ -227,37 +368,41 @@ async function main() {
   let interactions: types.ChatGPTInteraction[] = []
   let loopNum = 0
   do {
-    console.log()
-    const newInteractions = await respondToNewMentions({
-      dryRun,
-      earlyExit,
-      chatgpt,
-      twitter,
-      user
-    })
+    try {
+      console.log()
+      const newInteractions = await respondToNewMentions({
+        dryRun,
+        earlyExit,
+        chatgpt,
+        twitter,
+        user
+      })
 
-    console.log(
-      `processed ${newInteractions?.length ?? 0} interactions`,
-      newInteractions
-    )
-    if (newInteractions?.length) {
-      interactions = interactions.concat(newInteractions)
-    }
+      if (earlyExit) {
+        break
+      }
 
-    if (earlyExit) {
-      break
-    }
+      console.log(
+        `processed ${newInteractions?.length ?? 0} interactions`,
+        newInteractions
+      )
+      if (newInteractions?.length) {
+        interactions = interactions.concat(newInteractions)
+      }
 
-    if (!newInteractions?.length) {
-      console.log('sleeping...')
-      // sleep if there were no mentions to process
-      await delay(10000)
-    }
+      if (!newInteractions?.length) {
+        console.log('sleeping...')
+        // sleep if there were no mentions to process
+        await delay(30000)
+      }
 
-    if (++loopNum % 30 === 0) {
-      console.log('refreshing twitter access token')
-      const { token } = await authClient.refreshAccessToken()
-      config.set('refreshToken', token.refresh_token)
+      if (++loopNum % 30 === 0) {
+        await refreshTwitterAuthToken()
+      }
+    } catch (err) {
+      console.warn('top-level error', err)
+      await delay(30000)
+      await refreshTwitterAuthToken()
     }
   } while (true)
 
@@ -267,7 +412,9 @@ async function main() {
 
 main()
   .then((res) => {
-    console.log(res)
+    if (res?.length) {
+      console.log(res)
+    }
     process.exit(0)
   })
   .catch((err) => {

@@ -24,6 +24,7 @@ specifiers:
   typedoc: ^0.23.21
   typedoc-plugin-markdown: ^3.13.6
   typescript: ^4.9.3
+  url-regex: ^5.0.0
   wink-eng-lite-web-model: ^1.4.3
   wink-nlp: ^1.12.3
 
@@ -36,6 +37,7 @@ dependencies:
   p-map: 5.5.0
   p-throttle: 5.0.0
   twitter-api-sdk: 1.2.1
+  url-regex: 5.0.0
   wink-eng-lite-web-model: 1.4.3_wink-nlp@1.12.3
   wink-nlp: 1.12.3
 
@@ -1562,6 +1564,11 @@ packages:
       - supports-color
     dev: false
 
+  /ip-regex/4.3.0:
+    resolution: {integrity: sha512-B9ZWJxHHOHUhUjCPrMpLD4xEq35bUTClHM1S6CBU5ixQnkZmwipwgc96vAd7AAGM9TGHvJR+Uss+/Ak6UphK+Q==}
+    engines: {node: '>=8'}
+    dev: false
+
   /is-arrayish/0.2.1:
     resolution: {integrity: sha512-zz06S8t0ozoDXMG+ube26zeCTNXcKIPJZJi8hBrF4idCLms4CG9QtK7qBl1boi5ODzFpjswb5JPmHCbMpjaYzg==}
     dev: true
@@ -2797,6 +2804,11 @@ packages:
     resolution: {integrity: sha512-w89qg7PI8wAdvX60bMDP+bFoD5Dvhm9oLheFp5O4a2QF0cSBGsBX4qZmadPMvVqlLJBBci+WqGGOAPvcDeNSVg==}
     dev: true
 
+  /tlds/1.234.0:
+    resolution: {integrity: sha512-TNDfeyDIC+oroH44bMbWC+Jn/2qNrfRvDK2EXt1icOXYG5NMqoRyUosADrukfb4D8lJ3S1waaBWSvQro0erdng==}
+    hasBin: true
+    dev: false
+
   /to-fast-properties/2.0.0:
     resolution: {integrity: sha512-/OaKK0xYrs3DmxRYqL/yDc+FxFUVYhDlXMhRmv3z915w2HF1tnN1omB354j8VUGO/hbRzyD6Y3sA7v7GS/ceog==}
     engines: {node: '>=4'}
@@ -2970,6 +2982,14 @@ packages:
     resolution: {integrity: sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==}
     dependencies:
       punycode: 2.1.1
+    dev: false
+
+  /url-regex/5.0.0:
+    resolution: {integrity: sha512-O08GjTiAFNsSlrUWfqF1jH0H1W3m35ZyadHrGv5krdnmPPoxP27oDTqux/579PtaroiSGm5yma6KT1mHFH6Y/g==}
+    engines: {node: '>=8'}
+    dependencies:
+      ip-regex: 4.3.0
+      tlds: 1.234.0
     dev: false
 
   /util-deprecate/1.0.2:

@@ -5,6 +5,9 @@ import * as types from './types'
 
 dotenv.config()
 
+export const twitterBotHandle = '@ChatGPTBot'
+export const twitterBotHandleL = twitterBotHandle.toLowerCase()
+
 // Optional redis instance for persisting responses
 export const enableRedis = true
 export const redisHost = process.env.REDIS_HOST
