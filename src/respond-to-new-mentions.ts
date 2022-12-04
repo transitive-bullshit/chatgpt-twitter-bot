@@ -282,12 +282,17 @@ export async function respondToNewMentions({
           return { promptTweetId, prompt, error: 'empty prompt' }
         }
 
+        if (index > 0) {
+          // slight slow down between ChatGPT requests
+          await delay(1000)
+        }
+
         let response: string
         try {
           const lang = franc(prompt, { minLength: 5 })
 
           if (!languageAllowList.has(lang)) {
-            const entry = iso6393.find((i) => i.iso6393 === 'sco')
+            const entry = iso6393.find((i) => i.iso6393 === lang)
             const langName = entry?.name || lang || 'unknown'
 
             // Check for languages that we know will cause problems for our code
@@ -379,11 +384,6 @@ export async function respondToNewMentions({
 
           if (enableRedis && !dryRun) {
             await keyv.set(mention.id, result)
-          }
-
-          if (index > 0) {
-            // slow down between ChatGPT requests
-            await delay(1000)
           }
 
           return result
