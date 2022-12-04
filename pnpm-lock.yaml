@@ -4,7 +4,7 @@ specifiers:
   '@keyv/redis': ^2.5.3
   '@trivago/prettier-plugin-sort-imports': ^4.0.0
   '@types/node': ^18.11.9
-  chatgpt: ^0.4.1
+  chatgpt: ^0.4.2
   conf: ^10.2.0
   del-cli: ^5.0.0
   delay: ^5.0.0
@@ -33,7 +33,7 @@ specifiers:
 
 dependencies:
   '@keyv/redis': 2.5.3
-  chatgpt: 0.4.1
+  chatgpt: 0.4.2
   conf: 10.2.0
   dotenv-safe: 8.2.0
   franc: 6.1.0
@@ -681,8 +681,8 @@ packages:
     engines: {node: ^12.17.0 || ^14.13 || >=16.0.0}
     dev: true
 
-  /chatgpt/0.4.1:
-    resolution: {integrity: sha512-PzAiZUL2y1jswlzUace1LGP6AMKkGc4/kXaCeKi0PAjdySTm3FrJ+j3sk52RDayL6fHQHBsY1q0EEq0pkUETdw==}
+  /chatgpt/0.4.2:
+    resolution: {integrity: sha512-g2LzlhKZR1dVgQuHepDg/Elfzk/wcydTO+Lc2UT0ICh+zPMgGky1Wi3lNfy+qQ5UGOrm1/gFlIRcUl9ny+DojQ==}
     engines: {node: '>=14'}
     dependencies:
       html-to-md: /@fisch0920/html-to-md/0.8.1
