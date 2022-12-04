@@ -24,7 +24,8 @@ export const languageAllowList = new Set([
   'arb', // TODO: tweet tokenization needs testing
   'bcl',
   'som',
-  'sot'
+  'sot',
+  'prs'
 ])
 
 export const languageDisallowList = new Set([
