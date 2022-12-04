@@ -25,7 +25,9 @@ export const languageAllowList = new Set([
   'bcl',
   'som',
   'sot',
-  'prs'
+  'prs',
+  'swe',
+  'ckb'
 ])
 
 export const languageDisallowList = new Set([

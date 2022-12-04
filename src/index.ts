@@ -13,6 +13,7 @@ async function main() {
   const headless = !!process.env.HEADLESS
   const debugTweet = process.env.DEBUG_TWEET
   const defaultSinceMentionId = process.env.SINCE_MENTION_ID
+  const defaultRefreshToken = process.env.TWITTER_TOKEN
 
   const chatgpt = new ChatGPTAPI({
     headless,
@@ -22,8 +23,8 @@ async function main() {
 
   let sinceMentionId = defaultSinceMentionId || config.get('sinceMentionId')
 
-  // const refreshToken = process.env.TWITTER_OAUTH_REFRESH_TOKEN || config.get('refreshToken')
-  const refreshToken = config.get('refreshToken')
+  const refreshToken = defaultRefreshToken || config.get('refreshToken')
+  // const refreshToken = config.get('refreshToken')
   const authToken = refreshToken ? { refresh_token: refreshToken } : undefined
   const authClient = new auth.OAuth2User({
     client_id: process.env.TWITTER_CLIENT_ID,
