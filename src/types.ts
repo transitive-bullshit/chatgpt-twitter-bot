@@ -20,8 +20,10 @@ export interface ChatGPTInteraction {
 export interface ChatGPTSession {
   interactions: ChatGPTInteraction[]
   isRateLimited: boolean
+  isRateLimitedTwitter: boolean
   isExpiredAuth: boolean
-  isExpiredTwitterAuth: boolean
+  isExpiredAuthTwitter: boolean
+  sinceMentionId?: string
 }
 
 export type Tweet = AsyncReturnType<Client['tweets']['findTweetsById']>['data']
@@ -35,6 +37,7 @@ export type ChatErrorType =
   | 'timeout'
   | 'twitter:auth'
   | 'twitter:duplicate'
+  | 'twitter:rate-limit'
 
 export class ChatError extends Error {
   isFinal: boolean = false

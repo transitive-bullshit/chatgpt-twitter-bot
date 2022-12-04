@@ -194,10 +194,27 @@ export async function createTwitterThreadForChatGPTResponse({
               const error = new types.ChatError(
                 `error creating tweet: invalid auth token`
               )
-              error.isFinal = true
-              error.type = 'twitter:duplicate'
+              error.isFinal = false
+              error.type = 'twitter:auth'
               throw error
             }
+          } else if (err.status === 429) {
+            const error = new types.ChatError(
+              `error creating tweet: too many requests`
+            )
+            error.isFinal = false
+            error.type = 'twitter:rate-limit'
+            throw error
+          }
+
+          if (err.status >= 400 && err.status < 500) {
+            const error = new types.ChatError(
+              `error creating tweet: ${err.status} ${
+                err.error?.description || ''
+              }`
+            )
+            error.type = 'unknown'
+            throw error
           }
 
           throw err
@@ -224,4 +241,30 @@ export function omit<T extends object>(obj: T, ...keys: string[]) {
   return Object.fromEntries<T>(
     Object.entries(obj).filter(([key]) => !keys.includes(key))
   ) as T
+}
+
+export function maxTwitterId(tweetIdA?: string, tweetIdB?: string): string {
+  if (!tweetIdA && !tweetIdB) {
+    return null
+  }
+
+  if (!tweetIdA) {
+    return tweetIdB
+  }
+
+  if (!tweetIdB) {
+    return tweetIdA
+  }
+
+  if (tweetIdA.length < tweetIdB.length) {
+    return tweetIdB
+  } else if (tweetIdA.length > tweetIdB.length) {
+    return tweetIdA
+  }
+
+  if (tweetIdA < tweetIdB) {
+    return tweetIdB
+  }
+
+  return tweetIdA
 }

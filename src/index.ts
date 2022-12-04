@@ -5,18 +5,22 @@ import { Client, auth } from 'twitter-api-sdk'
 import * as types from './types'
 import config from './config'
 import { respondToNewMentions } from './respond-to-new-mentions'
+import { maxTwitterId } from './utils'
 
 async function main() {
   const dryRun = !!process.env.DRY_RUN
   const earlyExit = !!process.env.EARLY_EXIT
   const headless = !!process.env.HEADLESS
   const debugTweet = process.env.DEBUG_TWEET
+  const defaultSinceMentionId = process.env.SINCE_MENTION_ID
 
   const chatgpt = new ChatGPTAPI({
     headless,
     markdown: false // TODO
   })
   const chatGptInitP = chatgpt.init({ auth: 'blocking' })
+
+  let sinceMentionId = defaultSinceMentionId || config.get('sinceMentionId')
 
   // const refreshToken = process.env.TWITTER_OAUTH_REFRESH_TOKEN || config.get('refreshToken')
   const refreshToken = config.get('refreshToken')
@@ -58,8 +62,23 @@ async function main() {
         debugTweet,
         chatgpt,
         twitter,
-        user
+        user,
+        sinceMentionId
       })
+
+      if (session.sinceMentionId) {
+        sinceMentionId = maxTwitterId(sinceMentionId, session.sinceMentionId)
+
+        // Make sure it's in sync in case other processes are writing to the store
+        // as well. Note: this still has a classic potential as a race condition,
+        // but it's not enough to worry about for our use case.
+        const recentSinceMentionId = config.get('sinceMentionId')
+        sinceMentionId = maxTwitterId(sinceMentionId, recentSinceMentionId)
+
+        if (sinceMentionId && !dryRun) {
+          config.set('sinceMentionId', sinceMentionId)
+        }
+      }
 
       if (earlyExit) {
         break
@@ -82,10 +101,19 @@ async function main() {
         await chatgpt.init({ auth: 'blocking' })
       }
 
-      if (session.isRateLimited) {
-        console.log('chatgpt rate limited; sleeping...')
+      if (session.isRateLimited || session.isRateLimitedTwitter) {
+        console.log(
+          `rate limited ${
+            session.isRateLimited ? 'chatgpt' : 'twitter'
+          }; sleeping...`
+        )
         await delay(30000)
         await delay(30000)
+
+        if (session.isRateLimitedTwitter) {
+          console.log('sleeping longer for twitter rate limit...')
+          await delay(60000 * 15)
+        }
       }
 
       const validSessionInteractions = session.interactions.filter(
@@ -97,11 +125,14 @@ async function main() {
         console.log('sleeping...')
         // sleep if there were no mentions to process
         await delay(30000)
+      } else {
+        // still sleep if there are active mentions because of rate limits...
+        await delay(15000)
       }
 
       ++loopNum
 
-      if (session.isExpiredTwitterAuth || loopNum % 15 === 0) {
+      if (session.isExpiredAuthTwitter || loopNum % 20 === 0) {
         await refreshTwitterAuthToken()
       }
     } catch (err) {

@@ -20,6 +20,7 @@ import {
   createTwitterThreadForChatGPTResponse,
   getChatGPTResponse,
   getTweetsFromResponse,
+  maxTwitterId,
   pick
 } from './utils'
 
@@ -33,7 +34,8 @@ export async function respondToNewMentions({
   debugTweet,
   chatgpt,
   twitter,
-  user
+  user,
+  sinceMentionId
 }: {
   dryRun: boolean
   earlyExit: boolean
@@ -41,10 +43,8 @@ export async function respondToNewMentions({
   chatgpt: ChatGPTAPI
   twitter: types.TwitterClient
   user: types.TwitterUser
+  sinceMentionId?: string
 }): Promise<types.ChatGPTSession> {
-  // config.delete('sinceMentionId')
-  let sinceMentionId = config.get('sinceMentionId')
-
   console.log('fetching mentions since', sinceMentionId || 'forever')
 
   function updateSinceMentionId(tweetId: string) {
@@ -52,20 +52,7 @@ export async function respondToNewMentions({
       return
     }
 
-    if (!sinceMentionId) {
-      sinceMentionId = tweetId
-      return
-    }
-
-    if (sinceMentionId.length < tweetId.length) {
-      sinceMentionId = tweetId
-      return
-    }
-
-    if (sinceMentionId < tweetId) {
-      sinceMentionId = tweetId
-      return
-    }
+    sinceMentionId = maxTwitterId(sinceMentionId, tweetId)
   }
 
   let mentions = []
@@ -269,8 +256,9 @@ export async function respondToNewMentions({
   const session: types.ChatGPTSession = {
     interactions: [],
     isRateLimited: false,
+    isRateLimitedTwitter: false,
     isExpiredAuth: false,
-    isExpiredTwitterAuth: false
+    isExpiredAuthTwitter: false
   }
 
   if (earlyExit) {
@@ -289,14 +277,18 @@ export async function respondToNewMentions({
       async (mention, index): Promise<types.ChatGPTInteraction> => {
         const { prompt, id: promptTweetId } = mention
         if (session.isRateLimited) {
-          return { promptTweetId, prompt, error: 'ChatGPT rate limit' }
+          return { promptTweetId, prompt, error: 'ChatGPT rate limited' }
+        }
+
+        if (session.isRateLimitedTwitter) {
+          return { promptTweetId, prompt, error: 'Twitter rate limited' }
         }
 
         if (session.isExpiredAuth) {
           return { promptTweetId, prompt, error: 'ChatGPT auth expired' }
         }
 
-        if (session.isExpiredTwitterAuth) {
+        if (session.isExpiredAuthTwitter) {
           return { promptTweetId, prompt, error: 'Twitter auth expired' }
         }
 
@@ -453,7 +445,9 @@ export async function respondToNewMentions({
           } else if (err instanceof types.ChatError) {
             if (err.type === 'twitter:auth') {
               // reset twitter auth
-              session.isExpiredTwitterAuth = true
+              session.isExpiredAuthTwitter = true
+            } else if (err.type === 'twitter:rate-limit') {
+              session.isRateLimitedTwitter = true
             }
           }
 
@@ -478,11 +472,8 @@ export async function respondToNewMentions({
     }
   }
 
-  if (sinceMentionId) {
-    config.set('sinceMentionId', sinceMentionId)
-  }
-
   session.interactions = results
+  session.sinceMentionId = sinceMentionId
 
   return session
 }
