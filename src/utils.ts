@@ -24,7 +24,15 @@ export function getTweetsFromResponse(response: string): string[] {
 
   for (const paragraph of paragraphs) {
     const doc = nlp.readDoc(paragraph)
-    const sentences = doc.sentences().out()
+    let sentences = doc.sentences().out()
+    for (let i = 0; i < sentences.length - 1; ++i) {
+      const s0 = sentences[i]
+      const s1 = sentences[i + 1]
+      if (s0.endsWith('.') && /^(js|ts|jsx|tsx)\b/.test(s1)) {
+        sentences[0] = `${s0}${s1}`
+        sentences.splice(i + 1, 1)
+      }
+    }
     // console.log(JSON.stringify(sentences, null, 2))
 
     for (let sentence of sentences) {
