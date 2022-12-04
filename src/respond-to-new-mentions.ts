@@ -322,9 +322,11 @@ export async function respondToNewMentions({
                     tweetTexts: [
                       `${
                         mentionAuthorUsername
-                          ? `Hey ${mentionAuthorUsername}, `
-                          : ''
-                      }"${langName}" is currently not supported by this chatbot. We're sorry for inconvenience and will be adding support for more languages soon.\n\nRef: ${promptTweetId}`
+                          ? `Hey @${mentionAuthorUsername}, we're sorry but`
+                          : "We're sorry but"
+                      }${
+                        langName === 'unknown' ? 'your prompt' : langName
+                      } is currently not supported by this chatbot. We apologize for the inconvenience and will be adding support for more languages soon.\n\nRef: ${promptTweetId}`
                     ]
                   })
 
