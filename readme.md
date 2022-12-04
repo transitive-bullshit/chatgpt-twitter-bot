@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://twitter.com/ChatGPTBot">
-    <img alt="Example Twitter thread using @ChatGPTBot" src="/media/example-thread.jpg">
+    <img alt="Example Twitter thread using @ChatGPTBot" src="/media/demo.jpg">
   </a>
 </p>
 
