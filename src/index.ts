@@ -18,6 +18,7 @@ async function main() {
   })
   const chatGptInitP = chatgpt.init({ auth: 'blocking' })
 
+  // const refreshToken = process.env.TWITTER_OAUTH_REFRESH_TOKEN || config.get('refreshToken')
   const refreshToken = config.get('refreshToken')
   const authToken = refreshToken ? { refresh_token: refreshToken } : undefined
   const authClient = new auth.OAuth2User({

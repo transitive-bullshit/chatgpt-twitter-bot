@@ -75,12 +75,16 @@ export function getTweetsFromResponse(response: string): string[] {
     currentTweet = null
   }
 
-  tweetDrafts = tweetDrafts.filter(Boolean)
+  tweetDrafts = tweetDrafts.map((t) => t.trim()).filter(Boolean)
   console.log(tweetDrafts.length, JSON.stringify(tweetDrafts, null, 2))
 
-  const tweets = tweetDrafts.map(
-    (draft, index) => `${index + 1}/${tweetDrafts.length} ${draft.trim()}`
-  )
+  const tweets = tweetDrafts.map((draft, index) => {
+    if (tweetDrafts.length > 1) {
+      return `${index + 1}/${tweetDrafts.length} ${draft}`
+    } else {
+      return draft
+    }
+  })
 
   return tweets
 }
