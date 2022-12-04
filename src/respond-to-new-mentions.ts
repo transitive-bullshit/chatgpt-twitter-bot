@@ -279,7 +279,12 @@ export async function respondToNewMentions({
         }
 
         if (!prompt) {
-          return { promptTweetId, prompt, error: 'empty prompt' }
+          return {
+            promptTweetId,
+            prompt,
+            error: 'empty prompt',
+            isErrorFinal: true
+          }
         }
 
         if (index > 0) {
@@ -307,13 +312,19 @@ export async function respondToNewMentions({
               })
               console.error()
 
+              const mentionAuthorUsername = users[mention.author_id]?.username
+
               const tweets = dryRun
                 ? []
                 : await createTwitterThreadForChatGPTResponse({
                     mention,
                     twitter,
                     tweetTexts: [
-                      `The language "${langName}" is currently not supported by this chatbot. We're sorry for inconvenience and will be adding support for more languages soon.`
+                      `${
+                        mentionAuthorUsername
+                          ? `Hey ${mentionAuthorUsername}, `
+                          : ''
+                      }"${langName}" is currently not supported by this chatbot. We're sorry for inconvenience and will be adding support for more languages soon.\n\nRef: ${promptTweetId}`
                     ]
                   })
 
@@ -322,6 +333,7 @@ export async function respondToNewMentions({
                 promptTweetId,
                 prompt,
                 error: `Unsupported language "${langName}"`,
+                isErrorFinal: true,
                 responseTweetIds
               }
             } else {
@@ -392,7 +404,8 @@ export async function respondToNewMentions({
             promptTweetId,
             prompt,
             response,
-            error: err.toString()
+            error: err.toString(),
+            isErrorFinal: !!err.isFinal
           }
         }
       },
@@ -403,7 +416,7 @@ export async function respondToNewMentions({
   ).filter(Boolean)
 
   for (const res of results) {
-    if (!res.error) {
+    if (!res.error || res.isErrorFinal) {
       updateSinceMentionId(res.promptTweetId)
     }
   }

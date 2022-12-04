@@ -165,6 +165,15 @@ export async function createTwitterThreadForChatGPTResponse({
           }
         } catch (err) {
           console.error('error creating tweet', JSON.stringify(err, null, 2))
+
+          if (err.status === 403) {
+            const error = new types.ChatError(
+              err.error?.detail || `error creating tweet: 403 forbidden`
+            )
+            error.isFinal = true
+            throw error
+          }
+
           return null
         }
       },

@@ -82,7 +82,12 @@ async function main() {
         await delay(30000)
       }
 
-      if (!session.interactions?.length) {
+      const validSessionInteractions = session.interactions.filter(
+        (interaction) =>
+          !interaction.error && interaction.responseTweetIds?.length
+      )
+
+      if (!validSessionInteractions?.length) {
         console.log('sleeping...')
         // sleep if there were no mentions to process
         await delay(30000)

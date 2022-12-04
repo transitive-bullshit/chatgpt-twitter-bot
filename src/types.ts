@@ -14,6 +14,7 @@ export interface ChatGPTInteraction {
   response?: string
   responseTweetIds?: string[]
   error?: string
+  isErrorFinal?: boolean
 }
 
 export interface ChatGPTSession {
@@ -27,3 +28,7 @@ export type TwitterUser = AsyncReturnType<Client['users']['findMyUser']>['data']
 export type CreatedTweet = AsyncReturnType<
   Client['tweets']['createTweet']
 >['data']
+
+export class ChatError extends Error {
+  isFinal: boolean = false
+}
