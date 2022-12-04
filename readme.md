@@ -46,6 +46,7 @@ The ChatGPT response will be split up into multiple tweet-sized replies.
 
 - Powered by the [Node.js ChatGPT API](https://github.com/transitive-bullshit/chatgpt-api) (unofficial)
 - Inspired by this [Go module](https://github.com/danielgross/whatsapp-gpt) by [Daniel Gross](https://github.com/danielgross)
+- [Telegram bot](https://github.com/m1guelpf/chatgpt-telegram)
 
 ## License
 

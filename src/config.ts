@@ -8,7 +8,7 @@ dotenv.config()
 export const twitterBotHandle = '@ChatGPTBot'
 export const twitterBotHandleL = twitterBotHandle.toLowerCase()
 
-export const languageAllowList = new Set(['eng', 'sco', 'spa', 'deu'])
+export const languageAllowList = new Set(['eng', 'sco', 'spa', 'deu', 'nno'])
 
 export const languageDisallowList = new Set([
   'jpn',
