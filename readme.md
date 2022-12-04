@@ -1,5 +1,7 @@
-<p>
-  <img alt="Example Twitter thread using @ChatGPTBot" src="/media/example-thread.jpg">
+<p align="center">
+  <a href="https://twitter.com/ChatGPTBot">
+    <img alt="Example Twitter thread using @ChatGPTBot" src="/media/example-thread.jpg" width="610">
+  </a>
 </p>
 
 # ChatGPT Twitter Bot <!-- omit in toc -->
@@ -28,6 +30,8 @@ It's a Twitter bot where you can @mention it with a prompt and it will respond w
 Then just wait until the bot responds, which can be anywhere from a minute to a few hours, depending on how much traffic it receives...
 
 The ChatGPT response will be split up into multiple tweet-sized replies.
+
+> **Note**
 
 ## Related
 
