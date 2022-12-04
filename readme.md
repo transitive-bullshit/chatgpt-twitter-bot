@@ -20,7 +20,7 @@
 
 This project powers [@ChatGPTBot](https://twitter.com/ChatGPTBot) on Twitter.
 
-It's a Twitter bot where you can @mention it with a prompt and it will respond with a twitter thread containing [ChatGPT]'s response.
+It's a Twitter bot where you can @mention it with a prompt and it will respond with a twitter thread containing [ChatGPT](https://github.com/transitive-bullshit/chatgpt-api)'s response.
 
 ## Usage
 
