@@ -3,6 +3,7 @@ import delay from 'delay'
 import { franc } from 'franc'
 import { iso6393 } from 'iso-639-3'
 import pMap from 'p-map'
+import pTimeout, { TimeoutError } from 'p-timeout'
 import urlRegex from 'url-regex'
 
 import * as types from './types'
@@ -10,6 +11,7 @@ import config, {
   enableRedis,
   languageAllowList,
   languageDisallowList,
+  tweetIgnoreList,
   twitterBotHandle,
   twitterBotHandleL
 } from './config'
@@ -183,6 +185,10 @@ export async function respondToNewMentions({
 
   mentions = mentions
     .filter((mention) => {
+      if (tweetIgnoreList.has(mention.id)) {
+        return false
+      }
+
       const text = mention.text
       const repliedToTweetRef = mention.referenced_tweets?.find(
         (t) => t.type === 'replied_to'
@@ -364,7 +370,11 @@ export async function respondToNewMentions({
             }
           }
 
-          response = await getChatGPTResponse(prompt, { chatgpt })
+          const twoMinutesMs = 2 * 60 * 60 * 1000
+          response = await pTimeout(getChatGPTResponse(prompt, { chatgpt }), {
+            milliseconds: twoMinutesMs,
+            message: 'ChatGPT timed out waiting for response'
+          })
 
           const responseL = response.toLowerCase()
           if (responseL.includes('too many requests, please slow down')) {
@@ -413,12 +423,36 @@ export async function respondToNewMentions({
 
           return result
         } catch (err: any) {
+          let isFinal = !!err.isFinal
+
+          if (err instanceof TimeoutError) {
+            // TODO: for now, we won't worry about trying to deal with retrying timeouts
+            isFinal = true
+
+            // reset auth
+            session.isExpiredAuth = true
+
+            try {
+              if (!dryRun) {
+                await createTwitterThreadForChatGPTResponse({
+                  mention,
+                  twitter,
+                  tweetTexts: [
+                    `Uh-oh ChatGPT timed out responding to your prompt. Sorry 😓\n\nRef: ${promptTweetId}`
+                  ]
+                })
+              }
+            } catch (err2) {
+              // ignore
+            }
+          }
+
           return {
             promptTweetId,
             prompt,
             response,
             error: err.toString(),
-            isErrorFinal: !!err.isFinal
+            isErrorFinal: !!isFinal
           }
         }
       },

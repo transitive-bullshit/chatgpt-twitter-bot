@@ -18,6 +18,7 @@ specifiers:
   ora: ^6.1.2
   p-map: ^5.5.0
   p-throttle: ^5.0.0
+  p-timeout: ^6.0.0
   prettier: ^2.8.0
   tsup: ^6.5.0
   tsx: ^3.12.1
@@ -40,6 +41,7 @@ dependencies:
   keyv: 4.5.2
   p-map: 5.5.0
   p-throttle: 5.0.0
+  p-timeout: 6.0.0
   twitter-api-sdk: 1.2.1
   url-regex: 5.0.0
   wink-eng-lite-web-model: 1.4.3_wink-nlp@1.12.3
@@ -2228,6 +2230,11 @@ packages:
   /p-throttle/5.0.0:
     resolution: {integrity: sha512-iXBFjW4kP/5Ivw7uC9EDnj+/xo3pNn4Rws3zgMGPwXnWTv1M3P0LVdZxLrqRUI5JK0Fp3Du0bt6lCaVrI3WF7g==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
+    dev: false
+
+  /p-timeout/6.0.0:
+    resolution: {integrity: sha512-5iS61MOdUMemWH9CORQRxVXTp9g5K8rPnI9uQpo97aWgsH3vVXKjkIhDi+OgIDmN3Ly9+AZ2fZV01Wut1yzfKA==}
+    engines: {node: '>=14.16'}
     dev: false
 
   /p-try/2.2.0:

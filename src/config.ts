@@ -8,6 +8,8 @@ dotenv.config()
 export const twitterBotHandle = '@ChatGPTBot'
 export const twitterBotHandleL = twitterBotHandle.toLowerCase()
 
+export const tweetIgnoreList = new Set(['1599344387401863174'])
+
 export const languageAllowList = new Set([
   'eng',
   'sco',
