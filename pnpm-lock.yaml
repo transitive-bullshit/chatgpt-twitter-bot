@@ -26,7 +26,7 @@ specifiers:
   wink-nlp: ^1.12.3
 
 dependencies:
-  chatgpt: link:../chatgpt-api
+  chatgpt: 0.2.0
   conf: 10.2.0
   dotenv-safe: 8.2.0
   ngrok: 4.3.3
@@ -336,6 +336,10 @@ packages:
     requiresBuild: true
     dev: true
     optional: true
+
+  /@fisch0920/html-to-md/0.8.1:
+    resolution: {integrity: sha512-CEOoGuhwjNKLl1OQN4dAxLLK3zAYyQG8JDDbCOTRUc+9dDllvv1REfXjN1D0wQf+ZYEQr+EmfIvbKjkifX7x9w==}
+    dev: false
 
   /@jridgewell/gen-mapping/0.1.1:
     resolution: {integrity: sha512-sQXCasFk+U8lWYEe66WxRDOE9PjVz4vSM51fTu3Hw+ClTpUSQb718772vH3pyS5pShp6lvQM7SxgIDXXXmOX7w==}
@@ -721,6 +725,14 @@ packages:
     resolution: {integrity: sha512-E5CkT4jWURs1Vy5qGJye+XwCkNj7Od3Af7CP6SujMetSMkLs8Do2RWJK5yx1wamHV/op8Rz+9rltjaTQWDnEFQ==}
     engines: {node: ^12.17.0 || ^14.13 || >=16.0.0}
     dev: true
+
+  /chatgpt/0.2.0:
+    resolution: {integrity: sha512-UN5dVNAFVDslrie3zQs2YP6065ayMo9AZrdjbdlu9Se8a5H5SQoBUMzjcwcWFC5vnpMTNsI2IFGr3DRHCy5Quw==}
+    engines: {node: '>=14'}
+    dependencies:
+      html-to-md: /@fisch0920/html-to-md/0.8.1
+      playwright: 1.28.1
+    dev: false
 
   /chokidar/3.5.3:
     resolution: {integrity: sha512-Dr3sfKRP6oTcjf2JmUmFJfeVMvXBdegxB0iVQ5eb2V10uFJUCAS8OByZdVAyVb8xXNz3GjjTgj9kLWsZTqE6kw==}
@@ -2448,6 +2460,21 @@ packages:
     engines: {node: '>=8'}
     dependencies:
       find-up: 3.0.0
+    dev: false
+
+  /playwright-core/1.28.1:
+    resolution: {integrity: sha512-3PixLnGPno0E8rSBJjtwqTwJe3Yw72QwBBBxNoukIj3lEeBNXwbNiKrNuB1oyQgTBw5QHUhNO3SteEtHaMK6ag==}
+    engines: {node: '>=14'}
+    hasBin: true
+    dev: false
+
+  /playwright/1.28.1:
+    resolution: {integrity: sha512-92Sz6XBlfHlb9tK5UCDzIFAuIkHHpemA9zwUaqvo+w7sFMSmVMGmvKcbptof/eJObq63PGnMhM75x7qxhTR78Q==}
+    engines: {node: '>=14'}
+    hasBin: true
+    requiresBuild: true
+    dependencies:
+      playwright-core: 1.28.1
     dev: false
 
   /postcss-load-config/3.1.4:

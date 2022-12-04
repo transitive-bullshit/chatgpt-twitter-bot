@@ -12,6 +12,7 @@
 
 - [Intro](#intro)
 - [Usage](#usage)
+- [Note](#note)
 - [Related](#related)
 - [License](#license)
 
@@ -23,15 +24,25 @@ It's a Twitter bot where you can @mention it with a prompt and it will respond w
 
 ## Usage
 
+Just create a tweet @mentioning `@ChatGPTBot` containing your prompt:
+
 ```
 @ChatGPTBot What is 1 + 1?
 ```
 
-Then just wait until the bot responds, which can be anywhere from a minute to a few hours, depending on how much traffic it receives...
+Then wait until the bot responds, which can be anywhere from a minute to a few hours, depending on how much traffic it ends up receiving...
 
 The ChatGPT response will be split up into multiple tweet-sized replies.
 
-> **Note**
+## Note
+
+**Don't be surprised if it takes awhile for the bot to respond to you**. This is due to:
+
+1. Twitter heavily rate-limits bots.
+2. This bot is just running on my local dev machine, so please be kind 🙏
+
+> **Warning**
+> Any improper use of ChatGPTBot will result in an immediate block on Twitter. Improper use covers everything [OpenAI](https://openai.com/blog/chatgpt/)'s API would consider disallowed / harmful / banned.
 
 ## Related
 
@@ -42,4 +53,4 @@ The ChatGPT response will be split up into multiple tweet-sized replies.
 
 MIT © [Travis Fischer](https://transitivebullsh.it)
 
-Support my open source work by <a href="https://twitter.com/transitive_bs">following me on twitter <img src="https://storage.googleapis.com/saasify-assets/twitter-logo.svg" alt="twitter" height="24px" align="center"></a>
+If you found this project interesting, please consider supporting my open source work by [sponsoring me](https://github.com/sponsors/transitive-bullshit) or <a href="https://twitter.com/transitive_bs">following me on twitter <img src="https://storage.googleapis.com/saasify-assets/twitter-logo.svg" alt="twitter" height="24px" align="center"></a>
