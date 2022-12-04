@@ -1,0 +1,84 @@
+{
+  "name": "chatgpt-twitter-bot",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Twitter bot powered by OpenAI's ChatGPT.",
+  "author": "Travis Fischer <travis@transitivebullsh.it>",
+  "repository": "transitive-bullshit/chatgpt-twitter-bot",
+  "license": "MIT",
+  "type": "module",
+  "source": "./src/index.ts",
+  "exports": {
+    "import": "./build/index.js",
+    "default": "./build/index.js",
+    "types": "./build/index.d.ts"
+  },
+  "files": [
+    "build"
+  ],
+  "engines": {
+    "node": ">=14"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "clean": "del build",
+    "prebuild": "run-s clean",
+    "predev": "run-s clean",
+    "pretest": "run-s build",
+    "docs": "typedoc",
+    "prepare": "husky install",
+    "pre-commit": "lint-staged",
+    "test": "run-p test:*",
+    "test:prettier": "prettier '**/*.{js,jsx,ts,tsx}' --check"
+  },
+  "dependencies": {
+    "chatgpt": "^0.2.0",
+    "conf": "^10.2.0",
+    "dotenv-safe": "^8.2.0",
+    "ngrok": "^4.3.3",
+    "p-map": "^5.5.0",
+    "p-throttle": "^5.0.0",
+    "twitter-api-sdk": "^1.2.1",
+    "wink-eng-lite-web-model": "^1.4.3",
+    "wink-nlp": "^1.12.3"
+  },
+  "devDependencies": {
+    "@trivago/prettier-plugin-sort-imports": "^4.0.0",
+    "@types/node": "^18.11.9",
+    "del-cli": "^5.0.0",
+    "delay": "^5.0.0",
+    "husky": "^8.0.2",
+    "lint-staged": "^13.0.3",
+    "npm-run-all": "^4.1.5",
+    "ora": "^6.1.2",
+    "prettier": "^2.8.0",
+    "tsup": "^6.5.0",
+    "tsx": "^3.12.1",
+    "typedoc": "^0.23.21",
+    "typedoc-plugin-markdown": "^3.13.6",
+    "typescript": "^4.9.3"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "prettier --write"
+    ]
+  },
+  "keywords": [
+    "openai",
+    "chatgpt",
+    "twitter bot",
+    "twitter",
+    "gpt",
+    "gpt3",
+    "gpt4",
+    "chatbot",
+    "chat",
+    "machine learning",
+    "conversation",
+    "conversational ai",
+    "ai",
+    "ml",
+    "bot"
+  ]
+}
