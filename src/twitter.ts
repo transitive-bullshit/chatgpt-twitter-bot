@@ -1,5 +1,6 @@
 import pThrottle from 'p-throttle'
-import { type Client } from 'twitter-api-sdk'
+
+import * as types from './types'
 
 // enforce twitter rate limit of 200 tweets per 15 minutes
 const throttle = pThrottle({
@@ -10,8 +11,8 @@ const throttle = pThrottle({
 export const createTweet = throttle(createTweetImpl)
 
 async function createTweetImpl(
-  args: Parameters<Client['tweets']['createTweet']>[0],
-  client: Client
+  args: Parameters<types.TwitterClient['tweets']['createTweet']>[0],
+  client: types.TwitterClient
 ) {
   return client.tweets.createTweet(args)
 }

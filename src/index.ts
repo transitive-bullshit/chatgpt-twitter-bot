@@ -1,49 +1,38 @@
 import { ChatGPTAPI } from 'chatgpt'
-import Conf from 'conf'
-import dotenv from 'dotenv-safe'
+import delay from 'delay'
 import pMap from 'p-map'
 import { Client, auth } from 'twitter-api-sdk'
 
 import * as types from './types'
-import { createTweet } from './twitter'
-import { getTweetsFromResponse } from './utils'
+import config, { enableRedis } from './config'
+import { keyv } from './keyv'
+import {
+  createTwitterThreadForChatGPTResponse,
+  getChatGPTResponse,
+  getTweetsFromResponse
+} from './utils'
 
-dotenv.config()
-
-export const config = new Conf<types.Config>({
-  defaults: { refreshToken: process.env.TWITTER_OAUTH_REFRESH_TOKEN }
-})
-
-async function main() {
-  const refreshToken = config.get('refreshToken')
-  const authToken = refreshToken ? { refresh_token: refreshToken } : undefined
-  const authClient = new auth.OAuth2User({
-    client_id: process.env.TWITTER_CLIENT_ID,
-    client_secret: process.env.TWITTER_CLIENT_SECRET,
-    callback: 'http://127.0.0.1:3000/callback',
-    scopes: ['tweet.read', 'users.read', 'offline.access', 'tweet.write'],
-    token: authToken
-  })
-
-  console.log('refreshing access token')
-  const { token } = await authClient.refreshAccessToken()
-  config.set('refreshToken', token.refresh_token)
-  // console.debug(token)
-
-  const twitter = new Client(authClient)
-  const { data: user } = await twitter.users.findMyUser()
-  if (!user?.id) {
-    throw new Error('twitter error unable to fetch current user')
-  }
-
-  const chatgpt = new ChatGPTAPI({
-    markdown: false // TODO
-  })
-  await chatgpt.init({ auth: 'blocking' })
-
-  config.delete('sinceMentionId') // TODO
-
+/**
+ * Fetches new unanswered mentions, resolves them via ChatGPT, and tweets response
+ * threads for each one.
+ */
+async function respondToNewMentions({
+  dryRun,
+  earlyExit,
+  chatgpt,
+  twitter,
+  user
+}: {
+  dryRun: boolean
+  earlyExit: boolean
+  chatgpt: ChatGPTAPI
+  twitter: types.TwitterClient
+  user: types.TwitterUser
+}): Promise<types.ChatGPTInteraction[] | null> {
+  // config.delete('sinceMentionId')
   let sinceMentionId = config.get('sinceMentionId')
+
+  console.log('fetching mentions since', sinceMentionId || 'forever')
 
   function updateSinceMentionId(tweetId: string) {
     if (!tweetId) {
@@ -66,6 +55,7 @@ async function main() {
     }
   }
 
+  // debugging
   // const ids = [
   //   '1599156989900206080',
   //   '1599197568860585984',
@@ -88,7 +78,6 @@ async function main() {
   // console.log(JSON.stringify(r, null, 2))
   // return null
 
-  console.log('get tweet mentions')
   const mentionsQuery = twitter.tweets.usersIdMentions(user.id, {
     expansions: ['author_id', 'in_reply_to_user_id', 'referenced_tweets.id'],
     'tweet.fields': [
@@ -99,7 +88,7 @@ async function main() {
       'in_reply_to_user_id',
       'referenced_tweets'
     ],
-    max_results: 100,
+    max_results: 10,
     since_id: sinceMentionId
   })
 
@@ -118,121 +107,66 @@ async function main() {
     }
   }
 
-  console.log('tweet mentions', mentions.length)
+  console.log(`processing ${mentions.length} tweet mentions`)
+  if (earlyExit) {
+    console.log(JSON.stringify(mentions, null, 2))
+    return null
+  }
+
+  // TODO: queue chat gpt requests one after another without waiting on twitter
   const results = (
     await pMap(
       mentions,
-      async (mention): Promise<types.ChatGPTResponse> => {
+      async (mention): Promise<types.ChatGPTInteraction> => {
         const { text } = mention
-        const prompt = text.replace(/@ChatGPTBot/g, '').trim()
+        const prompt = text?.replace(/@ChatGPTBot/g, '').trim()
+        const promptTweetId = mention.id
         if (!prompt) {
-          return { promptTweetId: mention.id, prompt, error: 'invalid tweet' }
+          return { promptTweetId, prompt, error: 'empty prompt' }
         }
 
+        let response: string
         try {
-          let response: string
-
-          try {
-            // response = await chatgpt.sendMessage(prompt)
-            response =
-              "Well, you know, the Dude, he's, uh, he's one to talk about the meaning of life, man. I mean, he's one to philosophize, you know? But, like, you know, when it comes down to it, man, it's all just, like, you know, your own personal opinion, man. I mean, like, you know, some people say it's to seek happiness and fulfillment, you know, to find love and meaning in the things you do, to make the world a better place, you know? But, like, the Dude, he's just out there, you know, taking it easy, enjoying the ride, you know? So, I guess, you know, the meaning of life, it's just, like, whatever you want it to be, man."
-
-            // response = 'Jazz is a genre of music that originated in the African American communities of the United States in the late 19th and early 20th centuries. It is a complex and diverse style of music that incorporates elements of blues, ragtime, and European harmony, among other influences. Jazz is known for its improvisational nature, where musicians often play off of each other and create melodies and solos in real-time. This spontaneity and creativity is part of what makes jazz so appealing to many people. Additionally, jazz has a rich history and cultural significance, with many famous and influential musicians, such as Louis Armstrong and Miles Davis, helping to shape the genre and make it what it is today.\n\nThis is a test.'
-          } catch (err: any) {
-            console.error('ChatGPT error', {
-              tweet: mention,
-              error: err
-            })
-
-            return {
-              promptTweetId: mention.id,
-              prompt,
-              error: `ChatGPT error: ${err.toString()}`
-            }
-          }
-
-          response = response?.trim()
-          if (!response) {
-            return {
-              promptTweetId: mention.id,
-              prompt,
-              error: `ChatGPT received an empty response`
-            }
-          }
+          response = await getChatGPTResponse(prompt, { chatgpt })
 
           // convert the response to tweet-sized chunks
           const tweetTexts = getTweetsFromResponse(response)
 
-          console.log('prompt', prompt, '=>', tweetTexts)
-          console.log(JSON.stringify(tweetTexts, null, 2))
+          console.log(
+            'prompt',
+            `(${promptTweetId})`,
+            prompt,
+            '=>',
+            JSON.stringify(tweetTexts, null, 2)
+          )
 
-          let prevTweet = mention
-          const tweets = (
-            await pMap(
-              tweetTexts,
-              async (text) => {
-                try {
-                  const reply = prevTweet?.id
-                    ? {
-                        in_reply_to_tweet_id: prevTweet.id
-                      }
-                    : undefined
+          const tweets = dryRun
+            ? []
+            : await createTwitterThreadForChatGPTResponse({
+                mention,
+                tweetTexts,
+                twitter
+              })
 
-                  const res = await createTweet(
-                    {
-                      text,
-                      reply
-                    },
-                    twitter
-                  )
-
-                  const tweet = res.data
-
-                  if (tweet?.id) {
-                    prevTweet = tweet
-
-                    console.log(
-                      'tweet response',
-                      JSON.stringify(tweet, null, 2)
-                    )
-
-                    return tweet
-                  } else {
-                    console.error('unknown error creating tweet', res, { text })
-                    return null
-                  }
-                } catch (err) {
-                  console.error(
-                    'error creating tweet',
-                    JSON.stringify(err, null, 2)
-                  )
-                  return null
-                }
-              },
-              {
-                // This has to be set to 1 because each tweet in the thread replies
-                // the to tweet before it
-                concurrency: 1
-              }
-            )
-          ).filter(Boolean)
-
-          return {
-            promptTweetId: mention.id,
+          const responseTweetIds = tweets.map((tweet) => tweet.id)
+          const result = {
+            promptTweetId,
             prompt,
             response,
-            responseTweetIds: tweets.map((tweet) => tweet.id)
+            responseTweetIds
           }
-        } catch (err: any) {
-          console.error('response error', {
-            tweet: mention,
-            error: err
-          })
 
+          if (enableRedis && !dryRun) {
+            await keyv.set(mention.id, result)
+          }
+
+          return result
+        } catch (err: any) {
           return {
-            promptTweetId: mention.id,
+            promptTweetId,
             prompt,
-            error: `Response error: ${err.toString()}`
+            response,
+            error: err.toString()
           }
         }
       },
@@ -243,7 +177,7 @@ async function main() {
   ).filter(Boolean)
 
   for (const res of results) {
-    if (!res.error) {
+    if (!dryRun && !res.error) {
       updateSinceMentionId(res.promptTweetId)
     }
   }
@@ -252,15 +186,91 @@ async function main() {
     config.set('sinceMentionId', sinceMentionId)
   }
 
-  await chatgpt.close()
-
   return results
+}
+
+async function main() {
+  const dryRun = !!process.env.DRY_RUN
+  const earlyExit = !!process.env.EARLY_EXIT
+  const headless = !!process.env.HEADLESS
+
+  const chatgpt = new ChatGPTAPI({
+    headless,
+    markdown: false // TODO
+  })
+  const chatGptInitP = chatgpt.init({ auth: 'blocking' })
+
+  const refreshToken = config.get('refreshToken')
+  const authToken = refreshToken ? { refresh_token: refreshToken } : undefined
+  const authClient = new auth.OAuth2User({
+    client_id: process.env.TWITTER_CLIENT_ID,
+    client_secret: process.env.TWITTER_CLIENT_SECRET,
+    callback: 'http://127.0.0.1:3000/callback',
+    scopes: ['tweet.read', 'users.read', 'offline.access', 'tweet.write'],
+    token: authToken
+  })
+
+  console.log('refreshing twitter access token')
+  const { token } = await authClient.refreshAccessToken()
+  config.set('refreshToken', token.refresh_token)
+  // console.debug(token)
+
+  const twitter = new Client(authClient)
+  const { data: user } = await twitter.users.findMyUser()
+  await chatGptInitP
+
+  if (!user?.id) {
+    await chatgpt.close()
+    throw new Error('twitter error unable to fetch current user')
+  }
+
+  let interactions: types.ChatGPTInteraction[] = []
+  let loopNum = 0
+  do {
+    console.log()
+    const newInteractions = await respondToNewMentions({
+      dryRun,
+      earlyExit,
+      chatgpt,
+      twitter,
+      user
+    })
+
+    console.log(
+      `processed ${newInteractions?.length ?? 0} interactions`,
+      newInteractions
+    )
+    if (newInteractions?.length) {
+      interactions = interactions.concat(newInteractions)
+    }
+
+    if (earlyExit) {
+      break
+    }
+
+    if (!newInteractions?.length) {
+      console.log('sleeping...')
+      // sleep if there were no mentions to process
+      await delay(10000)
+    }
+
+    if (++loopNum % 30 === 0) {
+      console.log('refreshing twitter access token')
+      const { token } = await authClient.refreshAccessToken()
+      config.set('refreshToken', token.refresh_token)
+    }
+  } while (true)
+
+  await chatgpt.close()
+  return interactions
 }
 
 main()
   .then((res) => {
     console.log(res)
+    process.exit(0)
   })
   .catch((err) => {
     console.error('error', JSON.stringify(err, null, 2))
+    process.exit(1)
   })

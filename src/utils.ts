@@ -1,10 +1,17 @@
+import { type ChatGPTAPI } from 'chatgpt'
+import pMap from 'p-map'
 import winkNLPModel from 'wink-eng-lite-web-model'
 import winkNLP from 'wink-nlp'
 
+import * as types from './types'
+import { createTweet } from './twitter'
+
 const nlp = winkNLP(winkNLPModel)
 
+/**
+ * Converts a ChatGPT response string to an array of tweet-sized strings.
+ */
 export function getTweetsFromResponse(response: string): string[] {
-  // convert the response to tweet-sized chunks
   const paragraphs = response
     .split('\n')
     .map((p) => p.trim())
@@ -74,6 +81,100 @@ export function getTweetsFromResponse(response: string): string[] {
   const tweets = tweetDrafts.map(
     (draft, index) => `${index + 1}/${tweetDrafts.length} ${draft.trim()}`
   )
+
+  return tweets
+}
+
+/**
+ * Asks ChatGPT for a response to a prompt
+ */
+export async function getChatGPTResponse(
+  prompt: string,
+  {
+    chatgpt
+  }: {
+    chatgpt: ChatGPTAPI
+  }
+): Promise<string> {
+  let response: string
+
+  try {
+    response = await chatgpt.sendMessage(prompt)
+  } catch (err: any) {
+    console.error('ChatGPT error', {
+      tweet: prompt,
+      error: err
+    })
+
+    throw new Error(`ChatGPT error: ${err.toString()}`)
+  }
+
+  response = response?.trim()
+  if (!response) {
+    throw new Error(`ChatGPT received an empty response`)
+  }
+
+  return response
+}
+
+/**
+ * Tweets each tweet in the response thread serially one after the other.
+ */
+export async function createTwitterThreadForChatGPTResponse({
+  mention,
+  tweetTexts,
+  twitter
+}: {
+  mention?: any
+  tweetTexts: string[]
+  twitter?: types.TwitterClient
+}): Promise<types.CreatedTweet[]> {
+  let prevTweet = mention
+
+  const tweets = (
+    await pMap(
+      tweetTexts,
+      async (text): Promise<types.CreatedTweet> => {
+        try {
+          const reply = prevTweet?.id
+            ? {
+                in_reply_to_tweet_id: prevTweet.id
+              }
+            : undefined
+
+          // Note: this call is rate-limited on our side
+          const res = await createTweet(
+            {
+              text,
+              reply
+            },
+            twitter
+          )
+
+          const tweet = res.data
+
+          if (tweet?.id) {
+            prevTweet = tweet
+
+            console.log('tweet response', JSON.stringify(tweet, null, 2))
+
+            return tweet
+          } else {
+            console.error('unknown error creating tweet', res, { text })
+            return null
+          }
+        } catch (err) {
+          console.error('error creating tweet', JSON.stringify(err, null, 2))
+          return null
+        }
+      },
+      {
+        // This has to be set to 1 because each tweet in the thread replies
+        // the to tweet before it
+        concurrency: 1
+      }
+    )
+  ).filter(Boolean)
 
   return tweets
 }
