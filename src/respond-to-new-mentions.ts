@@ -220,7 +220,7 @@ export async function respondToNewMentions({
         (usernames[usernames.length - 1] === twitterBotHandleL ||
           (numMentions === 1 && !isReply))
       ) {
-        if (isReply && repliedToTweet.numMentions >= numMentions) {
+        if (isReply && repliedToTweet?.numMentions >= numMentions) {
           console.log('ignoring mention 0', mention, {
             repliedToTweet,
             numMentions
