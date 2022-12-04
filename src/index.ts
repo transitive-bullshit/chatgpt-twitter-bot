@@ -10,6 +10,7 @@ async function main() {
   const dryRun = !!process.env.DRY_RUN
   const earlyExit = !!process.env.EARLY_EXIT
   const headless = !!process.env.HEADLESS
+  const debugTweet = process.env.DEBUG_TWEET
 
   const chatgpt = new ChatGPTAPI({
     headless,
@@ -53,6 +54,7 @@ async function main() {
       const session = await respondToNewMentions({
         dryRun,
         earlyExit,
+        debugTweet,
         chatgpt,
         twitter,
         user
@@ -68,6 +70,10 @@ async function main() {
       )
       if (session.interactions?.length) {
         interactions = interactions.concat(session.interactions)
+      }
+
+      if (debugTweet) {
+        break
       }
 
       if (session.isExpiredAuth) {

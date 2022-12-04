@@ -28,12 +28,14 @@ import {
 export async function respondToNewMentions({
   dryRun,
   earlyExit,
+  debugTweet,
   chatgpt,
   twitter,
   user
 }: {
   dryRun: boolean
   earlyExit: boolean
+  debugTweet?: string
   chatgpt: ChatGPTAPI
   twitter: types.TwitterClient
   user: types.TwitterUser
@@ -64,58 +66,66 @@ export async function respondToNewMentions({
     }
   }
 
-  // debugging
-  // const ids = [
-  //   '1599156989900206080',
-  //   '1599197568860585984',
-  //   '1599197592596123648'
-  // ]
-  // const r = await twitter.tweets.findTweetsById({
-  //   ids: ids,
-  //   expansions: ['author_id', 'in_reply_to_user_id', 'referenced_tweets.id'],
-  //   'tweet.fields': [
-  //     'created_at',
-  //     'public_metrics',
-  //     'source',
-  //     'conversation_id',
-  //     'in_reply_to_user_id',
-  //     'referenced_tweets'
-  //   ]
-  //   // since_id: sinceMentionId
-  // })
-  // console.log(JSON.stringify(r, null, 2))
-  // return null
-  const mentionsQuery = twitter.tweets.usersIdMentions(user.id, {
-    expansions: ['author_id', 'in_reply_to_user_id', 'referenced_tweets.id'],
-    'tweet.fields': [
-      'created_at',
-      'public_metrics',
-      'conversation_id',
-      'in_reply_to_user_id',
-      'referenced_tweets'
-    ],
-    max_results: 100,
-    since_id: sinceMentionId
-  })
-
   let mentions = []
   let users = {}
   let tweets = {}
 
-  for await (const page of mentionsQuery) {
-    if (page.data?.length) {
-      mentions = mentions.concat(page.data)
-    }
+  if (debugTweet) {
+    const ids = debugTweet.split(',').map((id) => id.trim())
+    const res = await twitter.tweets.findTweetsById({
+      ids: ids,
+      expansions: ['author_id', 'in_reply_to_user_id', 'referenced_tweets.id'],
+      'tweet.fields': [
+        'created_at',
+        'public_metrics',
+        'conversation_id',
+        'in_reply_to_user_id',
+        'referenced_tweets'
+      ]
+    })
 
-    if (page.includes?.users?.length) {
-      for (const user of page.includes.users) {
+    mentions = mentions.concat(res.data)
+
+    if (res.includes?.users?.length) {
+      for (const user of res.includes.users) {
         users[user.id] = user
       }
     }
 
-    if (page.includes?.tweets?.length) {
-      for (const tweet of page.includes.tweets) {
+    if (res.includes?.tweets?.length) {
+      for (const tweet of res.includes.tweets) {
         tweets[tweet.id] = tweet
+      }
+    }
+  } else {
+    const mentionsQuery = twitter.tweets.usersIdMentions(user.id, {
+      expansions: ['author_id', 'in_reply_to_user_id', 'referenced_tweets.id'],
+      'tweet.fields': [
+        'created_at',
+        'public_metrics',
+        'conversation_id',
+        'in_reply_to_user_id',
+        'referenced_tweets'
+      ],
+      max_results: 100,
+      since_id: sinceMentionId
+    })
+
+    for await (const page of mentionsQuery) {
+      if (page.data?.length) {
+        mentions = mentions.concat(page.data)
+      }
+
+      if (page.includes?.users?.length) {
+        for (const user of page.includes.users) {
+          users[user.id] = user
+        }
+      }
+
+      if (page.includes?.tweets?.length) {
+        for (const tweet of page.includes.tweets) {
+          tweets[tweet.id] = tweet
+        }
       }
     }
   }
@@ -201,7 +211,8 @@ export async function respondToNewMentions({
 
       if (
         numMentions > 0 &&
-        usernames[usernames.length - 1] === twitterBotHandleL
+        (usernames[usernames.length - 1] === twitterBotHandleL ||
+          (numMentions === 1 && !isReply))
       ) {
         if (isReply && repliedToTweet.numMentions >= numMentions) {
           console.log('ignoring mention 0', mention, {
