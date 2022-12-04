@@ -16,6 +16,12 @@ export interface ChatGPTInteraction {
   error?: string
 }
 
+export interface ChatGPTSession {
+  interactions: ChatGPTInteraction[]
+  isRateLimited: boolean
+  isExpiredAuth: boolean
+}
+
 export type Tweet = AsyncReturnType<Client['tweets']['findTweetsById']>['data']
 export type TwitterUser = AsyncReturnType<Client['users']['findMyUser']>['data']
 export type CreatedTweet = AsyncReturnType<

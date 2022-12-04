@@ -34,7 +34,7 @@ async function respondToNewMentions({
   chatgpt: ChatGPTAPI
   twitter: types.TwitterClient
   user: types.TwitterUser
-}): Promise<types.ChatGPTInteraction[] | null> {
+}): Promise<types.ChatGPTSession> {
   // config.delete('sinceMentionId')
   let sinceMentionId = config.get('sinceMentionId')
 
@@ -170,71 +170,74 @@ async function respondToNewMentions({
     }
   }
 
-  mentions = mentions.filter((mention) => {
-    const text = mention.text
-    const repliedToTweetRef = mention.referenced_tweets?.find(
-      (t) => t.type === 'replied_to'
-    )
-    const isReply = !!repliedToTweetRef
-    const repliedToTweet = repliedToTweetRef
-      ? tweets[repliedToTweetRef.id]
-      : null
-    if (repliedToTweet) {
-      repliedToTweet.prompt = getPrompt(repliedToTweet.text)
-      const subMentions = getNumMentionsInText(repliedToTweet.text, {
-        isReply: !!repliedToTweet.referenced_tweets?.find(
-          (t) => t.type === 'replied_to'
-        )
-      })
-      repliedToTweet.numMentions = subMentions.numMentions
-    }
-
-    mention.prompt = getPrompt(text)
-
-    if (!mention.prompt) {
-      return false
-    }
-
-    const { numMentions, usernames } = getNumMentionsInText(text)
-
-    if (
-      numMentions > 0 &&
-      usernames[usernames.length - 1] === twitterBotHandleL
-    ) {
-      if (isReply && repliedToTweet.numMentions >= numMentions) {
-        console.log('ignoring mention 0', mention, {
-          repliedToTweet,
-          numMentions
+  mentions = mentions
+    .filter((mention) => {
+      const text = mention.text
+      const repliedToTweetRef = mention.referenced_tweets?.find(
+        (t) => t.type === 'replied_to'
+      )
+      const isReply = !!repliedToTweetRef
+      const repliedToTweet = repliedToTweetRef
+        ? tweets[repliedToTweetRef.id]
+        : null
+      if (repliedToTweet) {
+        repliedToTweet.prompt = getPrompt(repliedToTweet.text)
+        const subMentions = getNumMentionsInText(repliedToTweet.text, {
+          isReply: !!repliedToTweet.referenced_tweets?.find(
+            (t) => t.type === 'replied_to'
+          )
         })
+        repliedToTweet.numMentions = subMentions.numMentions
+      }
 
-        updateSinceMentionId(mention.id)
+      mention.prompt = getPrompt(text)
+
+      if (!mention.prompt) {
         return false
-      } else if (numMentions === 1) {
-        if (isReply && mention.in_reply_to_user_id === user.id) {
-          console.log('ignoring mention 1', mention, {
+      }
+
+      const { numMentions, usernames } = getNumMentionsInText(text)
+
+      if (
+        numMentions > 0 &&
+        usernames[usernames.length - 1] === twitterBotHandleL
+      ) {
+        if (isReply && repliedToTweet.numMentions >= numMentions) {
+          console.log('ignoring mention 0', mention, {
+            repliedToTweet,
             numMentions
           })
 
           updateSinceMentionId(mention.id)
           return false
+        } else if (numMentions === 1) {
+          if (isReply && mention.in_reply_to_user_id === user.id) {
+            console.log('ignoring mention 1', mention, {
+              numMentions
+            })
+
+            updateSinceMentionId(mention.id)
+            return false
+          }
         }
+      } else {
+        console.log('ignoring mention 2', pick(mention, 'text', 'id'), {
+          numMentions
+        })
+
+        updateSinceMentionId(mention.id)
+        return false
       }
-    } else {
-      console.log('ignoring mention 2', pick(mention, 'text', 'id'), {
-        numMentions
+
+      console.log(JSON.stringify(mention, null, 2), {
+        numMentions,
+        repliedToTweet
       })
-
-      updateSinceMentionId(mention.id)
-      return false
-    }
-
-    console.log(JSON.stringify(mention, null, 2), {
-      numMentions,
-      repliedToTweet
+      // console.log(pick(mention, 'id', 'text', 'prompt'), { numMentions })
+      return true
     })
-    // console.log(pick(mention, 'id', 'text', 'prompt'), { numMentions })
-    return true
-  })
+    // only process a max of 5 mentions at a time
+    .slice(0, 5)
 
   console.log(
     `processing ${mentions.length} tweet mentions`,
@@ -245,19 +248,36 @@ async function respondToNewMentions({
     }))
   )
 
+  const session: types.ChatGPTSession = {
+    interactions: [],
+    isRateLimited: false,
+    isExpiredAuth: false
+  }
+
   if (earlyExit) {
     if (mentions.length > 0) {
       console.log('mentions', JSON.stringify(mentions, null, 2))
     }
-    return null
+
+    return session
   }
 
-  // TODO: queue chat gpt requests one after another without waiting on twitter
+  // TODO: queue chat gpt requests one after another without waiting on twitter?
+  // maybe not worth it since rate limiting on ChatGPT's side is a thing...
+
   const results = (
     await pMap(
       mentions,
-      async (mention): Promise<types.ChatGPTInteraction> => {
+      async (mention, index): Promise<types.ChatGPTInteraction> => {
         const { text, prompt, id: promptTweetId } = mention
+        if (session.isRateLimited) {
+          return { promptTweetId, prompt, error: 'ChatGPT rate limit' }
+        }
+
+        if (session.isExpiredAuth) {
+          return { promptTweetId, prompt, error: 'ChatGPT auth expired' }
+        }
+
         if (!prompt) {
           return { promptTweetId, prompt, error: 'empty prompt' }
         }
@@ -265,6 +285,20 @@ async function respondToNewMentions({
         let response: string
         try {
           response = await getChatGPTResponse(prompt, { chatgpt })
+
+          const responseL = response.toLowerCase()
+          if (responseL.includes('too many requests, please slow down')) {
+            session.isRateLimited = true
+            return null
+          }
+
+          if (
+            responseL.includes('your authentication token has expired') ||
+            responseL.includes('please try signing in again')
+          ) {
+            session.isExpiredAuth = true
+            return null
+          }
 
           // convert the response to tweet-sized chunks
           const tweetTexts = getTweetsFromResponse(response)
@@ -297,6 +331,11 @@ async function respondToNewMentions({
             await keyv.set(mention.id, result)
           }
 
+          if (index > 0) {
+            // slow down between ChatGPT requests
+            await delay(1000)
+          }
+
           return result
         } catch (err: any) {
           return {
@@ -323,7 +362,9 @@ async function respondToNewMentions({
     config.set('sinceMentionId', sinceMentionId)
   }
 
-  return results
+  session.interactions = results
+
+  return session
 }
 
 async function main() {
@@ -370,7 +411,7 @@ async function main() {
   do {
     try {
       console.log()
-      const newInteractions = await respondToNewMentions({
+      const session = await respondToNewMentions({
         dryRun,
         earlyExit,
         chatgpt,
@@ -383,14 +424,26 @@ async function main() {
       }
 
       console.log(
-        `processed ${newInteractions?.length ?? 0} interactions`,
-        newInteractions
+        `processed ${session.interactions?.length ?? 0} interactions`,
+        session.interactions
       )
-      if (newInteractions?.length) {
-        interactions = interactions.concat(newInteractions)
+      if (session.interactions?.length) {
+        interactions = interactions.concat(session.interactions)
       }
 
-      if (!newInteractions?.length) {
+      if (session.isExpiredAuth) {
+        await chatgpt.close()
+        await refreshTwitterAuthToken()
+        await chatgpt.init({ auth: 'blocking' })
+      }
+
+      if (session.isRateLimited) {
+        console.log('chatgpt rate limited; sleeping...')
+        await delay(30000)
+        await delay(30000)
+      }
+
+      if (!session.interactions?.length) {
         console.log('sleeping...')
         // sleep if there were no mentions to process
         await delay(30000)
