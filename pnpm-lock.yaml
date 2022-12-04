@@ -3,7 +3,7 @@ lockfileVersion: 5.4
 specifiers:
   '@trivago/prettier-plugin-sort-imports': ^4.0.0
   '@types/node': ^18.11.9
-  chatgpt: ^0.2.0
+  chatgpt: ^0.4.1
   conf: ^10.2.0
   del-cli: ^5.0.0
   delay: ^5.0.0
@@ -26,7 +26,7 @@ specifiers:
   wink-nlp: ^1.12.3
 
 dependencies:
-  chatgpt: 0.2.0
+  chatgpt: 0.4.1
   conf: 10.2.0
   dotenv-safe: 8.2.0
   ngrok: 4.3.3
@@ -726,8 +726,8 @@ packages:
     engines: {node: ^12.17.0 || ^14.13 || >=16.0.0}
     dev: true
 
-  /chatgpt/0.2.0:
-    resolution: {integrity: sha512-UN5dVNAFVDslrie3zQs2YP6065ayMo9AZrdjbdlu9Se8a5H5SQoBUMzjcwcWFC5vnpMTNsI2IFGr3DRHCy5Quw==}
+  /chatgpt/0.4.1:
+    resolution: {integrity: sha512-PzAiZUL2y1jswlzUace1LGP6AMKkGc4/kXaCeKi0PAjdySTm3FrJ+j3sk52RDayL6fHQHBsY1q0EEq0pkUETdw==}
     engines: {node: '>=14'}
     dependencies:
       html-to-md: /@fisch0920/html-to-md/0.8.1

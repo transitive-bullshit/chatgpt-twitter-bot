@@ -33,7 +33,7 @@
     "test:prettier": "prettier '**/*.{js,jsx,ts,tsx}' --check"
   },
   "dependencies": {
-    "chatgpt": "^0.2.0",
+    "chatgpt": "^0.4.1",
     "conf": "^10.2.0",
     "dotenv-safe": "^8.2.0",
     "ngrok": "^4.3.3",
