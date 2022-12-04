@@ -79,7 +79,6 @@ async function main() {
 
       if (session.isExpiredAuth) {
         await chatgpt.close()
-        await refreshTwitterAuthToken()
         await chatgpt.init({ auth: 'blocking' })
       }
 
@@ -100,7 +99,9 @@ async function main() {
         await delay(30000)
       }
 
-      if (++loopNum % 30 === 0) {
+      ++loopNum
+
+      if (session.isExpiredTwitterAuth || loopNum % 15 === 0) {
         await refreshTwitterAuthToken()
       }
     } catch (err) {

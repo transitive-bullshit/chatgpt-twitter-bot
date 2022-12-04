@@ -269,7 +269,8 @@ export async function respondToNewMentions({
   const session: types.ChatGPTSession = {
     interactions: [],
     isRateLimited: false,
-    isExpiredAuth: false
+    isExpiredAuth: false,
+    isExpiredTwitterAuth: false
   }
 
   if (earlyExit) {
@@ -293,6 +294,10 @@ export async function respondToNewMentions({
 
         if (session.isExpiredAuth) {
           return { promptTweetId, prompt, error: 'ChatGPT auth expired' }
+        }
+
+        if (session.isExpiredTwitterAuth) {
+          return { promptTweetId, prompt, error: 'Twitter auth expired' }
         }
 
         if (!prompt) {
@@ -429,7 +434,7 @@ export async function respondToNewMentions({
             // TODO: for now, we won't worry about trying to deal with retrying timeouts
             isFinal = true
 
-            // reset auth
+            // reset chatgpt auth
             session.isExpiredAuth = true
 
             try {
@@ -444,6 +449,11 @@ export async function respondToNewMentions({
               }
             } catch (err2) {
               // ignore
+            }
+          } else if (err instanceof types.ChatError) {
+            if (err.type === 'twitter:auth') {
+              // reset twitter auth
+              session.isExpiredTwitterAuth = true
             }
           }
 

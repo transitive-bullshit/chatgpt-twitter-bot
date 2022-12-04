@@ -183,10 +183,24 @@ export async function createTwitterThreadForChatGPTResponse({
               err.error?.detail || `error creating tweet: 403 forbidden`
             )
             error.isFinal = true
+            error.type = 'twitter:duplicate'
             throw error
+          } else if (err.status === 400) {
+            if (
+              /value passed for the token was invalid/i.test(
+                err.error?.error_description
+              )
+            ) {
+              const error = new types.ChatError(
+                `error creating tweet: invalid auth token`
+              )
+              error.isFinal = true
+              error.type = 'twitter:duplicate'
+              throw error
+            }
           }
 
-          return null
+          throw err
         }
       },
       {
