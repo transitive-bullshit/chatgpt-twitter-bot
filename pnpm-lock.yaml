@@ -9,7 +9,9 @@ specifiers:
   del-cli: ^5.0.0
   delay: ^5.0.0
   dotenv-safe: ^8.2.0
+  franc: ^6.1.0
   husky: ^8.0.2
+  iso-639-3: ^3.0.1
   keyv: ^4.5.2
   lint-staged: ^13.0.3
   npm-run-all: ^4.1.5
@@ -33,6 +35,8 @@ dependencies:
   chatgpt: 0.4.1
   conf: 10.2.0
   dotenv-safe: 8.2.0
+  franc: 6.1.0
+  iso-639-3: 3.0.1
   keyv: 4.5.2
   p-map: 5.5.0
   p-throttle: 5.0.0
@@ -754,6 +758,10 @@ packages:
     engines: {node: '>=0.10.0'}
     dev: false
 
+  /collapse-white-space/2.1.0:
+    resolution: {integrity: sha512-loKTxY1zCOuG4j9f6EPnuyyYkf58RnhhWTvRoZEokgB+WbdXehfjFviyOVYkqzEWz1Q5kRiZdBYS5SwxbQYwzw==}
+    dev: false
+
   /color-convert/1.9.3:
     resolution: {integrity: sha512-QfAUtd+vFdAtFQcC8CCyYt1fYWxSqAiK2cSD6zDB8N3cpsEBAvRxp9zOGg6G/SHHJYAT88/az/IuDGALsNVbGg==}
     dependencies:
@@ -1309,6 +1317,12 @@ packages:
       path-exists: 4.0.0
     dev: true
 
+  /franc/6.1.0:
+    resolution: {integrity: sha512-woYqLX7sFcrKD4y1M33IorhH4b21bCDNr0Rm+zlAGRNuxLFilT4h8qEcclu8RFLpHmvNz7FgAYl9Vqfa8UZwoA==}
+    dependencies:
+      trigram-utils: 2.0.1
+    dev: false
+
   /fs.realpath/1.0.0:
     resolution: {integrity: sha512-OO0pH2lK6a0hZnAdau5ItzHPI6pUlvI7jMVnxUQRtw4owF2wk8lOSabtGDCTP4Ggrg2MbGnWO9X8K1t4+fGMDw==}
     dev: true
@@ -1729,6 +1743,10 @@ packages:
     resolution: {integrity: sha512-RHxMLp9lnKHGHRng9QFhRCMbYAcVpn69smSGcq3f36xjgVVWThj4qqLbTLlq7Ssj8B+fIQ1EuCEGI2lKsyQeIw==}
     dev: true
 
+  /iso-639-3/3.0.1:
+    resolution: {integrity: sha512-SdljCYXOexv/JmbQ0tvigHN43yECoscVpe2y2hlEqy/CStXQlroPhZLj7zKLRiGqLJfw8k7B973UAMDoQczVgQ==}
+    dev: false
+
   /javascript-natural-sort/0.7.1:
     resolution: {integrity: sha512-nO6jcEfZWQXDhOiBtG2KvKyEptz7RVbpGP4vTD2hLBdmNQSsCiicO2Ioinv6UI4y9ukqnBpy+XZ9H6uLNgJTlw==}
     dev: true
@@ -2025,6 +2043,10 @@ packages:
       object-assign: 4.1.1
       thenify-all: 1.6.0
     dev: true
+
+  /n-gram/2.0.2:
+    resolution: {integrity: sha512-S24aGsn+HLBxUGVAUFOwGpKs7LBcG4RudKU//eWzt/mQ97/NMKQxDWHyHx63UNWk/OOdihgmzoETn1tf5nQDzQ==}
+    dev: false
 
   /neo-async/2.6.2:
     resolution: {integrity: sha512-Yd3UES5mWCSqR+qNT93S3UoYUkqAZ9lLg8a7g9rimsWmYGK8cVToA4/sF3RrshdyV3sAGMXVUmpMYOw+dLpOuw==}
@@ -2835,6 +2857,13 @@ packages:
     resolution: {integrity: sha512-L0Orpi8qGpRG//Nd+H90vFB+3iHnue1zSSGmNOOCh1GLJ7rUKVwV2HvijphGQS2UmhUZewS9VgvxYIdgr+fG1A==}
     hasBin: true
     dev: true
+
+  /trigram-utils/2.0.1:
+    resolution: {integrity: sha512-nfWIXHEaB+HdyslAfMxSqWKDdmqY9I32jS7GnqpdWQnLH89r6A5sdk3fDVYqGAZ0CrT8ovAFSAo6HRiWcWNIGQ==}
+    dependencies:
+      collapse-white-space: 2.1.0
+      n-gram: 2.0.2
+    dev: false
 
   /trim-newlines/4.0.2:
     resolution: {integrity: sha512-GJtWyq9InR/2HRiLZgpIKv+ufIKrVrvjQWEj7PxAXNc5dwbNJkqhAUoAGgzRmULAnoOM5EIpveYd3J2VeSAIew==}

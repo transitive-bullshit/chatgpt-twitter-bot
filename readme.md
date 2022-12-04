@@ -18,9 +18,7 @@
 
 ## Intro
 
-This project powers [@ChatGPTBot](https://twitter.com/ChatGPTBot) on Twitter.
-
-It's a Twitter bot where you can @mention it with a prompt and it will respond with a twitter thread containing [ChatGPT](https://github.com/transitive-bullshit/chatgpt-api)'s response.
+[@ChatGPTBot](https://twitter.com/ChatGPTBot) is a Twitter bot where you can @mention it with a prompt and it will respond with a twitter thread containing [ChatGPT](https://github.com/transitive-bullshit/chatgpt-api)'s response.
 
 ## Usage
 
@@ -30,7 +28,7 @@ Just create a tweet @mentioning `@ChatGPTBot` containing your prompt:
 @ChatGPTBot What is 1 + 1?
 ```
 
-Then wait until the bot responds, which can be anywhere from a minute to a few hours, depending on how much traffic it ends up receiving...
+Then wait until the bot responds, which can be anywhere from a few seconds to a few minutes (hopefully not longer), depending on how much usage the bot receives.
 
 The ChatGPT response will be split up into multiple tweet-sized replies.
 

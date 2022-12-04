@@ -1,5 +1,7 @@
 import { ChatGPTAPI } from 'chatgpt'
 import delay from 'delay'
+import { franc } from 'franc'
+import { iso6393 } from 'iso-639-3'
 import pMap from 'p-map'
 import { Client, auth } from 'twitter-api-sdk'
 import urlRegex from 'url-regex'
@@ -7,6 +9,8 @@ import urlRegex from 'url-regex'
 import * as types from './types'
 import config, {
   enableRedis,
+  languageAllowList,
+  languageDisallowList,
   twitterBotHandle,
   twitterBotHandleL
 } from './config'
@@ -269,7 +273,7 @@ async function respondToNewMentions({
     await pMap(
       mentions,
       async (mention, index): Promise<types.ChatGPTInteraction> => {
-        const { text, prompt, id: promptTweetId } = mention
+        const { prompt, id: promptTweetId } = mention
         if (session.isRateLimited) {
           return { promptTweetId, prompt, error: 'ChatGPT rate limit' }
         }
@@ -284,6 +288,56 @@ async function respondToNewMentions({
 
         let response: string
         try {
+          const lang = franc(prompt, { minLength: 5 })
+
+          if (!languageAllowList.has(lang)) {
+            const entry = iso6393.find((i) => i.iso6393 === 'sco')
+            const langName = entry?.name || lang || 'unknown'
+
+            // Check for languages that we know will cause problems for our code
+            // and degrace gracefully with an error message.
+            if (languageDisallowList.has(lang)) {
+              console.error()
+              console.error('error: unsupported language detected in prompt', {
+                lang,
+                langName,
+                prompt,
+                promptTweetId
+              })
+              console.error()
+
+              const tweets = dryRun
+                ? []
+                : await createTwitterThreadForChatGPTResponse({
+                    mention,
+                    twitter,
+                    tweetTexts: [
+                      `The language "${langName}" is currently not supported by this chatbot. We're sorry for inconvenience and will be adding support for more languages soon.`
+                    ]
+                  })
+
+              const responseTweetIds = tweets.map((tweet) => tweet.id)
+              return {
+                promptTweetId,
+                prompt,
+                error: `Unsupported language "${langName}"`,
+                responseTweetIds
+              }
+            } else {
+              console.warn()
+              console.warn(
+                'warning: unrecognized language detected in prompt',
+                {
+                  lang,
+                  langName,
+                  prompt,
+                  promptTweetId
+                }
+              )
+              console.warn()
+            }
+          }
+
           response = await getChatGPTResponse(prompt, { chatgpt })
 
           const responseL = response.toLowerCase()

@@ -8,6 +8,21 @@ dotenv.config()
 export const twitterBotHandle = '@ChatGPTBot'
 export const twitterBotHandleL = twitterBotHandle.toLowerCase()
 
+export const languageAllowList = new Set(['eng', 'sco', 'spa', 'deu'])
+
+export const languageDisallowList = new Set([
+  'jpn',
+  'cmn',
+  'zho',
+  'cth',
+  'yue',
+  'nan',
+  'nod',
+  'sou',
+  'tha',
+  'vie'
+])
+
 // Optional redis instance for persisting responses
 export const enableRedis = true
 export const redisHost = process.env.REDIS_HOST
