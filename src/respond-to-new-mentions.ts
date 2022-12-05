@@ -312,6 +312,9 @@ export async function respondToNewMentions({
 
         let response: string
         try {
+          // TODO: the `franc` module we're using for language detection doesn't
+          // seem very accurate at inferrring english. It will often pick some
+          // european dialect instead.
           const lang = franc(prompt, { minLength: 5 })
 
           if (!languageAllowList.has(lang)) {

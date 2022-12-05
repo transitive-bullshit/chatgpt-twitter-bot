@@ -10,16 +10,20 @@ import { maxTwitterId } from './utils'
 async function main() {
   const dryRun = !!process.env.DRY_RUN
   const earlyExit = !!process.env.EARLY_EXIT
-  const headless = !!process.env.HEADLESS
   const debugTweet = process.env.DEBUG_TWEET
   const defaultSinceMentionId = process.env.SINCE_MENTION_ID
   const defaultRefreshToken = process.env.TWITTER_TOKEN
 
   const chatgpt = new ChatGPTAPI({
-    headless,
+    sessionToken: process.env.SESSION_TOKEN!,
     markdown: false // TODO
   })
-  const chatGptInitP = chatgpt.init({ auth: 'blocking' })
+
+  // for testing chatgpt
+  // await chatgpt.ensureAuth()
+  // const res = await chatgpt.sendMessage('this is a test')
+  // console.log(res)
+  // return
 
   let sinceMentionId = defaultSinceMentionId || config.get('sinceMentionId')
 
@@ -36,21 +40,26 @@ async function main() {
 
   async function refreshTwitterAuthToken() {
     console.log('refreshing twitter access token')
-    const { token } = await authClient.refreshAccessToken()
-    config.set('refreshToken', token.refresh_token)
-    return token
+    try {
+      const { token } = await authClient.refreshAccessToken()
+      config.set('refreshToken', token.refresh_token)
+      return token
+    } catch (err) {
+      console.error('unexpected error refreshing twitter access token', err)
+      return null
+    }
   }
 
   await refreshTwitterAuthToken()
 
   const twitter = new Client(authClient)
   const { data: user } = await twitter.users.findMyUser()
-  await chatGptInitP
 
   if (!user?.id) {
-    await chatgpt.close()
     throw new Error('twitter error unable to fetch current user')
   }
+
+  await chatgpt.ensureAuth()
 
   let interactions: types.ChatGPTInteraction[] = []
   let loopNum = 0
@@ -98,8 +107,10 @@ async function main() {
       }
 
       if (session.isExpiredAuth) {
-        await chatgpt.close()
-        await chatgpt.init({ auth: 'blocking' })
+        throw new Error(
+          'ChatGPT auth expired error; unrecoverable. Please update SESSION_TOKEN'
+        )
+        break
       }
 
       if (session.isRateLimited || session.isRateLimitedTwitter) {
@@ -108,12 +119,12 @@ async function main() {
             session.isRateLimited ? 'chatgpt' : 'twitter'
           }; sleeping...`
         )
-        await delay(30000)
-        await delay(30000)
+        await delay(30000) // 30s
+        await delay(30000) // 30s
 
         if (session.isRateLimitedTwitter) {
           console.log('sleeping longer for twitter rate limit...')
-          await delay(60000 * 15)
+          await delay(5 * 60 * 1000) // 5m
         }
       }
 
@@ -125,10 +136,10 @@ async function main() {
       if (!validSessionInteractions?.length) {
         console.log('sleeping...')
         // sleep if there were no mentions to process
-        await delay(30000)
+        await delay(30000) // 30s
       } else {
         // still sleep if there are active mentions because of rate limits...
-        await delay(15000)
+        await delay(5000) // 5s
       }
 
       ++loopNum
@@ -143,7 +154,6 @@ async function main() {
     }
   } while (true)
 
-  await chatgpt.close()
   return interactions
 }
 

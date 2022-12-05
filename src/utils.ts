@@ -111,7 +111,12 @@ export async function getChatGPTResponse(
   let response: string
 
   try {
-    response = await chatgpt.sendMessage(prompt)
+    console.log('chatgpt.sendMessage', prompt)
+    response = await chatgpt.sendMessage(
+      prompt
+      // for debugging slow prompts
+      // , { onProgress: (r) => console.log('chatgpt...', r) }
+    )
   } catch (err: any) {
     console.error('ChatGPT error', {
       tweet: prompt,
