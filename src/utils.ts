@@ -126,12 +126,16 @@ export async function getChatGPTResponse(
     throw new Error(`ChatGPT error: ${err.toString()}`)
   }
 
-  response = response?.trim()
+  response = stripAtMentions(response)?.trim()
   if (!response) {
     throw new Error(`ChatGPT received an empty response`)
   }
 
   return response
+}
+
+function stripAtMentions(text?: string) {
+  return text?.replaceAll(/\b\@([a-zA-Z0-9_]+\b)/g, '$1')
 }
 
 /**
