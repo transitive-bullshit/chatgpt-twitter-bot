@@ -144,7 +144,7 @@ export async function respondToNewMentions({
     { isReply }: { isReply?: boolean } = {}
   ) {
     const prefixText = isReply
-      ? (text.match(/^(\@[a-zA-Z0-9_]+\s+)+/g) || [])[0]
+      ? (text.match(/^(\@[a-zA-Z0-9_]+,?\s+)+/g) || [])[0]
       : text
     if (!prefixText) {
       return {
@@ -172,6 +172,10 @@ export async function respondToNewMentions({
 
   mentions = mentions
     .filter((mention) => {
+      if (!mention) {
+        return false
+      }
+
       if (tweetIgnoreList.has(mention.id)) {
         return false
       }
