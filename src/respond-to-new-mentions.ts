@@ -131,11 +131,13 @@ export async function respondToNewMentions({
     let prompt = text
       .replace(twitterBotHandleL, '')
       .replace(twitterBotHandle, '')
-      .replace(/^ *@[a-zA-Z0-9_]+/g, '')
-      .replace(/^ *@[a-zA-Z0-9_]+/g, '')
-      .replace(/^ *@[a-zA-Z0-9_]+/g, '')
-      .replace(/^ *@[a-zA-Z0-9_]+/g, '')
+      .replace(/^\s*@[a-zA-Z0-9_]+/g, '')
+      .replace(/^\s*@[a-zA-Z0-9_]+/g, '')
+      .replace(/^\s*@[a-zA-Z0-9_]+/g, '')
+      .replace(/^\s*@[a-zA-Z0-9_]+/g, '')
       .replace(rUrl, '')
+      .trim()
+      .replace(/^,\s*/, '')
       .trim()
 
     // fix bug in plaintext version for code blocks
@@ -158,8 +160,8 @@ export async function respondToNewMentions({
       }
     }
 
-    const usernames = (prefixText.match(/\@[a-zA-Z0-9_]+\s/g) || []).map(
-      (u: string) => u.trim().toLowerCase()
+    const usernames = (prefixText.match(/\@[a-zA-Z0-9_]+,?\s/g) || []).map(
+      (u: string) => u.trim().toLowerCase().replace(',', '')
     )
     let numMentions = 0
 
