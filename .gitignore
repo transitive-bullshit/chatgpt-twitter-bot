@@ -45,5 +45,4 @@ next-env.d.ts
 .env.test.local
 .env.production.local
 
-# data dumps
-out/
+test.html

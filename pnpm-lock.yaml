@@ -17,6 +17,7 @@ specifiers:
   keyv: ^4.5.2
   lint-staged: ^13.0.3
   markdown-it: ^13.0.1
+  mkdirp: ^1.0.4
   npm-run-all: ^4.1.5
   ora: ^6.1.2
   p-map: ^5.5.0
@@ -70,6 +71,7 @@ devDependencies:
   delay: 5.0.0
   husky: 8.0.2
   lint-staged: 13.0.4
+  mkdirp: 1.0.4
   npm-run-all: 4.1.5
   ora: 6.1.2
   prettier: 2.8.0
@@ -2862,6 +2864,12 @@ packages:
   /mkdirp-classic/0.5.3:
     resolution: {integrity: sha512-gKLcREMhtuZRwRAfqP3RFW+TK4JqApVBtOIftVgjuABpAtpxhPGaDcfvbhNvD0B8iD1oUr/txX35NjcaY6Ns/A==}
     dev: false
+
+  /mkdirp/1.0.4:
+    resolution: {integrity: sha512-vVqVZQyf3WLx2Shd0qJ9xuvqgAyKPLAiqITEtqW0oIUjzo3PePDd6fW9iFz30ef7Ysp/oiWqbhszeGWW2T6Gzw==}
+    engines: {node: '>=10'}
+    hasBin: true
+    dev: true
 
   /mri/1.2.0:
     resolution: {integrity: sha512-tzzskb3bG8LvYGFF/mDTpq3jpI6Q9wc3LEmBaghu+DdCssd1FakN7Bc0hVNmEyGq1bq3RgfkCb3cmQLpNPOroA==}

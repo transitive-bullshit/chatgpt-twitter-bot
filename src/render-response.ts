@@ -1,4 +1,4 @@
-// import fs from 'fs/promises'
+import fs from 'fs/promises'
 import hljs from 'highlight.js'
 import MarkdownIt from 'markdown-it'
 import { renderText } from 'puppeteer-render-text'
@@ -68,22 +68,20 @@ body {
   gap: 32px;
 }
 
-.prompt, .response {
-  white-space: pre-line;
-}
-
-.content > :first-child {
+.prompt > :first-child,
+.response > :first-child {
   margin-block-start: 0;
   margin-top: 0;
 }
 
-.content > :last-child {
+.prompt > :last-child,
+.response > :last-child {
   margin-block-end: 0;
   margin-bottom: 0;
 }
 
 .hljs {
-  padding: 16px;
+  padding: 24px;
   border-radius: 8px;
 }
 
@@ -109,7 +107,7 @@ body {
   align-items: center;
 }
 
-code {
+pre {
   max-width: 100%;
   white-space: pre-wrap;
 }
@@ -131,18 +129,44 @@ code {
   height: 2em;
   border-radius: 50%;
 }
+
+p {
+  white-space: pre-line;
+}
+
+p,
+ol,
+ul,
+li,
+hr,
+pre {
+  margin-bottom: 1em;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin-bottom: 0.5em;
+}
 `
 
 export async function renderResponse({
   prompt,
   response,
   userImageUrl = 'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png',
-  username
+  username,
+  outputPath,
+  htmlOutputPath
 }: {
   prompt?: string
   response
   userImageUrl?: string
   username?: string
+  outputPath?: string
+  htmlOutputPath?: string
 }): Promise<string> {
   const md = new MarkdownIt({
     highlight: function (str, lang) {
@@ -217,7 +241,7 @@ export async function renderResponse({
 </div>
 `
 
-  const output = temporaryFile({ extension: 'jpg' })
+  const output = outputPath || temporaryFile({ extension: 'jpg' })
   const html = await renderText({
     text: input,
     output,
@@ -231,7 +255,9 @@ export async function renderResponse({
     }
   })
 
-  // await fs.writeFile('test.html', html, 'utf-8')
+  if (htmlOutputPath) {
+    await fs.writeFile(htmlOutputPath, html, 'utf-8')
+  }
 
   return output
 }

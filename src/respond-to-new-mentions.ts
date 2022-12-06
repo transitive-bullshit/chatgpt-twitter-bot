@@ -313,27 +313,48 @@ export async function respondToNewMentions({
     await pMap(
       mentions,
       async (mention, index): Promise<types.ChatGPTInteraction> => {
-        const { prompt, id: promptTweetId } = mention
+        const { prompt, id: promptTweetId, author_id: promptUserId } = mention
+        const promptUser = users[mention.author_id]
+        const promptUsername = promptUser?.username
+
+        const result: types.ChatGPTInteraction = {
+          promptTweetId,
+          promptUserId,
+          promptUsername,
+          prompt
+        }
+
         if (session.isRateLimited) {
-          return { promptTweetId, prompt, error: 'ChatGPT rate limited' }
+          return {
+            ...result,
+            error: 'ChatGPT rate limited'
+          }
         }
 
         if (session.isRateLimitedTwitter) {
-          return { promptTweetId, prompt, error: 'Twitter rate limited' }
+          return {
+            ...result,
+            error: 'Twitter rate limited'
+          }
         }
 
         if (session.isExpiredAuth) {
-          return { promptTweetId, prompt, error: 'ChatGPT auth expired' }
+          return {
+            ...result,
+            error: 'ChatGPT auth expired'
+          }
         }
 
         if (session.isExpiredAuthTwitter) {
-          return { promptTweetId, prompt, error: 'Twitter auth expired' }
+          return {
+            ...result,
+            error: 'Twitter auth expired'
+          }
         }
 
         if (!prompt) {
           return {
-            promptTweetId,
-            prompt,
+            ...result,
             error: 'empty prompt',
             isErrorFinal: true
           }
@@ -387,13 +408,12 @@ export async function respondToNewMentions({
 
               const responseTweetIds = tweets.map((tweet) => tweet.id)
               return {
-                promptTweetId,
-                prompt,
+                ...result,
                 error: `Unsupported language "${langName}"`,
                 isErrorFinal: true,
                 responseTweetIds
               }
-            } else {
+            } else if (!languageDisallowList.has(lang)) {
               console.warn()
               console.warn(
                 'warning: unrecognized language detected in prompt',
@@ -420,6 +440,7 @@ export async function respondToNewMentions({
             }
           )
 
+          result.response = response
           const responseL = response.toLowerCase()
           if (responseL.includes('too many requests, please slow down')) {
             session.isRateLimited = true
@@ -506,12 +527,7 @@ export async function respondToNewMentions({
             // await rmfr(imageFilePath)
           }
 
-          const result = {
-            promptTweetId,
-            prompt,
-            response,
-            responseTweetIds
-          }
+          result.responseTweetIds = responseTweetIds
 
           if (enableRedis && !dryRun) {
             await keyv.set(mention.id, result)
@@ -551,9 +567,7 @@ export async function respondToNewMentions({
           }
 
           return {
-            promptTweetId,
-            prompt,
-            response,
+            ...result,
             error: err.toString(),
             isErrorFinal: !!isFinal
           }

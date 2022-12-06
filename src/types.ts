@@ -11,10 +11,15 @@ export interface Config {
 }
 
 export interface ChatGPTInteraction {
-  promptTweetId: string
   prompt: string
+  promptTweetId: string
+  promptUserId: string
+  promptUsername: string
+  promptUrl?: string
+
   response?: string
   responseTweetIds?: string[]
+
   error?: string
   isErrorFinal?: boolean
 }
