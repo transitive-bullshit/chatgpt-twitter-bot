@@ -4,10 +4,11 @@ import { franc } from 'franc'
 import { iso6393 } from 'iso-639-3'
 import pMap from 'p-map'
 import pTimeout, { TimeoutError } from 'p-timeout'
+import rmfr from 'rmfr'
 import urlRegex from 'url-regex'
 
 import * as types from './types'
-import config, {
+import {
   enableRedis,
   languageAllowList,
   languageDisallowList,
@@ -16,13 +17,13 @@ import config, {
   twitterBotHandleL
 } from './config'
 import { keyv } from './keyv'
+import { renderResponse } from './render-response'
 import {
+  createTweet,
   createTwitterThreadForChatGPTResponse,
-  getChatGPTResponse,
-  getTweetsFromResponse,
-  maxTwitterId,
-  pick
-} from './utils'
+  maxTwitterId
+} from './twitter'
+import { getChatGPTResponse, getTweetsFromResponse, pick } from './utils'
 
 /**
  * Fetches new unanswered mentions, resolves them via ChatGPT, and tweets response
@@ -34,16 +35,20 @@ export async function respondToNewMentions({
   debugTweet,
   chatgpt,
   twitter,
+  twitterV1,
   user,
-  sinceMentionId
+  sinceMentionId,
+  tweetMode = 'image'
 }: {
   dryRun: boolean
   earlyExit: boolean
   debugTweet?: string
   chatgpt: ChatGPTAPI
   twitter: types.TwitterClient
+  twitterV1: types.TwitterClientV1
   user: types.TwitterUser
   sinceMentionId?: string
+  tweetMode?: types.TweetMode
 }): Promise<types.ChatGPTSession> {
   console.log('fetching mentions since', sinceMentionId || 'forever')
 
@@ -245,7 +250,8 @@ export async function respondToNewMentions({
       // console.log(pick(mention, 'id', 'text', 'prompt'), { numMentions })
       return true
     })
-    // only process a max of 5 mentions at a time
+    // only process a max of 5 mentions at a time (the oldest ones first)
+    .reverse()
     .slice(0, 5)
 
   console.log(
@@ -374,11 +380,17 @@ export async function respondToNewMentions({
             }
           }
 
-          const twoMinutesMs = 2 * 60 * 60 * 1000
-          response = await pTimeout(getChatGPTResponse(prompt, { chatgpt }), {
-            milliseconds: twoMinutesMs,
-            message: 'ChatGPT timed out waiting for response'
-          })
+          const threeMinutesMs = 3 * 60 * 1000
+          response = await pTimeout(
+            getChatGPTResponse(prompt, {
+              chatgpt,
+              stripMentions: tweetMode === 'image' ? false : true
+            }),
+            {
+              milliseconds: threeMinutesMs,
+              message: 'ChatGPT timed out waiting for response'
+            }
+          )
 
           const responseL = response.toLowerCase()
           if (responseL.includes('too many requests, please slow down')) {
@@ -394,26 +406,73 @@ export async function respondToNewMentions({
             return null
           }
 
-          // convert the response to tweet-sized chunks
-          const tweetTexts = getTweetsFromResponse(response)
+          let responseTweetIds: string[] = []
 
-          console.log(
-            'prompt',
-            `(${promptTweetId})`,
-            prompt,
-            '=>',
-            JSON.stringify(tweetTexts, null, 2)
-          )
+          if (tweetMode === 'thread') {
+            // convert the response to tweet-sized chunks
+            const tweetTexts = getTweetsFromResponse(response)
 
-          const tweets = dryRun
-            ? []
-            : await createTwitterThreadForChatGPTResponse({
-                mention,
-                tweetTexts,
-                twitter
-              })
+            console.log(
+              'prompt',
+              `(${promptTweetId})`,
+              prompt,
+              '=>',
+              JSON.stringify(tweetTexts, null, 2)
+            )
 
-          const responseTweetIds = tweets.map((tweet) => tweet.id)
+            const tweets = dryRun
+              ? []
+              : await createTwitterThreadForChatGPTResponse({
+                  mention,
+                  tweetTexts,
+                  twitter
+                })
+
+            responseTweetIds = tweets.map((tweet) => tweet.id)
+          } else {
+            const promptUser = users[mention.author_id]
+            // render the response as an image
+            const imageFilePath = await renderResponse({
+              prompt,
+              response,
+              userImageUrl: promptUser?.profile_image_url,
+              username: promptUser?.username
+            })
+
+            console.log(
+              'prompt',
+              `(${promptTweetId})`,
+              prompt,
+              '=>',
+              imageFilePath,
+              '\n' + response
+            )
+
+            const mediaId = await twitterV1.uploadMedia(imageFilePath, {
+              type: 'jpg',
+              mimeType: 'image/jpeg',
+              target: 'tweet'
+            })
+
+            const tweet = await createTweet(
+              {
+                text: '',
+                reply: {
+                  in_reply_to_tweet_id: promptTweetId
+                },
+                media: {
+                  media_ids: [mediaId]
+                }
+              },
+              twitter
+            )
+
+            responseTweetIds = [tweet.id]
+
+            // cleanup
+            // await rmfr(imageFilePath)
+          }
+
           const result = {
             promptTweetId,
             prompt,

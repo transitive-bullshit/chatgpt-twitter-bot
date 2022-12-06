@@ -18,7 +18,7 @@
     "build"
   ],
   "engines": {
-    "node": ">=14"
+    "node": ">=16"
   },
   "scripts": {
     "build": "tsup",
@@ -35,16 +35,23 @@
   },
   "dependencies": {
     "@keyv/redis": "^2.5.3",
-    "chatgpt": "1.2.0",
+    "chatgpt": "1.2.1",
     "conf": "^10.2.0",
     "dotenv-safe": "^8.2.0",
     "franc": "^6.1.0",
+    "highlight.js": "^11.7.0",
     "iso-639-3": "^3.0.1",
     "keyv": "^4.5.2",
+    "markdown-it": "^13.0.1",
     "p-map": "^5.5.0",
     "p-throttle": "^5.0.0",
     "p-timeout": "^6.0.0",
+    "puppeteer-render-text": "^2.1.1",
+    "random": "^4.1.0",
+    "rmfr": "^2.0.0",
+    "tempy": "^3.0.0",
     "twitter-api-sdk": "^1.2.1",
+    "twitter-api-v2": "^1.12.9",
     "url-regex": "^5.0.0",
     "wink-eng-lite-web-model": "^1.4.3",
     "wink-nlp": "^1.12.3"

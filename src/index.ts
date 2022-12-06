@@ -1,11 +1,12 @@
 import { ChatGPTAPI } from 'chatgpt'
 import delay from 'delay'
-import { Client, auth } from 'twitter-api-sdk'
+import { Client as TwitterClient, auth } from 'twitter-api-sdk'
+import { TwitterApi } from 'twitter-api-v2'
 
 import * as types from './types'
 import config from './config'
 import { respondToNewMentions } from './respond-to-new-mentions'
-import { maxTwitterId } from './utils'
+import { maxTwitterId } from './twitter'
 
 async function main() {
   const dryRun = !!process.env.DRY_RUN
@@ -13,10 +14,12 @@ async function main() {
   const debugTweet = process.env.DEBUG_TWEET
   const defaultSinceMentionId = process.env.SINCE_MENTION_ID
   const defaultRefreshToken = process.env.TWITTER_TOKEN
+  const tweetMode: types.TweetMode =
+    (process.env.TWEET_MODE as types.TweetMode) || 'image'
 
   const chatgpt = new ChatGPTAPI({
     sessionToken: process.env.SESSION_TOKEN!,
-    markdown: false // TODO
+    markdown: tweetMode === 'image' ? true : false
   })
 
   // for testing chatgpt
@@ -52,12 +55,28 @@ async function main() {
 
   await refreshTwitterAuthToken()
 
-  const twitter = new Client(authClient)
+  // Twitter API v2 using OAuth 2.0
+  const twitter = new TwitterClient(authClient)
+
+  // Twitter API v1 using OAuth 1.1a?
+  // NOTE: this is required only to upload media since that doesn't seeem to be
+  // supported with the Twitter API v2
+  const twitterApi = new TwitterApi({
+    appKey: process.env.TWITTER_API_KEY,
+    appSecret: process.env.TWITTER_API_SECRET_KEY,
+    accessToken: process.env.TWITTER_API_ACCESS_TOKEN,
+    accessSecret: process.env.TWITTER_API_ACCESS_SECRET
+  })
+  const { v1: twitterV1 } = twitterApi
+
   const { data: user } = await twitter.users.findMyUser()
 
   if (!user?.id) {
     throw new Error('twitter error unable to fetch current user')
   }
+  // console.log(user)
+  // console.log(await twitterApi.currentUser())
+  // return
 
   await chatgpt.ensureAuth()
 
@@ -72,8 +91,10 @@ async function main() {
         debugTweet,
         chatgpt,
         twitter,
+        twitterV1,
         user,
-        sinceMentionId
+        sinceMentionId,
+        tweetMode
       })
 
       if (session.sinceMentionId) {
