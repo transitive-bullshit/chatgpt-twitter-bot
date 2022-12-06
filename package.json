@@ -11,8 +11,8 @@
   "types": "./build/index.d.ts",
   "exports": {
     "import": "./build/index.js",
-    "default": "./build/index.js",
-    "types": "./build/index.d.ts"
+    "types": "./build/index.d.ts",
+    "default": "./build/index.js"
   },
   "files": [
     "build"
@@ -31,6 +31,7 @@
     "prepare": "husky install",
     "pre-commit": "lint-staged",
     "test": "run-p test:*",
+    "test:unit": "ava",
     "test:prettier": "prettier '**/*.{js,jsx,ts,tsx}' --check"
   },
   "dependencies": {

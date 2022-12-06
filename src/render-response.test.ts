@@ -73,9 +73,7 @@ def bubble_sort(arr):
         for j in range(0, n - i - 1):
             if arr[j] > arr[j + 1]:
                 arr[j], arr[j + 1] = arr[j + 1], arr[j]
-\`\`\`
-
-Does this work for you?`
+\`\`\``
   },
 
   {
@@ -104,7 +102,8 @@ Does this work for you?`
 ]
 
 const userImageUrl =
-  'https://pbs.twimg.com/profile_images/1235530549067943937/6BQE9kbQ_400x400.jpg'
+  // 'https://pbs.twimg.com/profile_images/1235530549067943937/6BQE9kbQ_400x400.jpg'
+  'https://pbs.twimg.com/profile_images/1347656662463766529/igIs8izN_400x400.png'
 const username = '@transitive_bs'
 
 for (let i = 0; i < fixtures.length; ++i) {
