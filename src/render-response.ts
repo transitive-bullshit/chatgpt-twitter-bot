@@ -201,7 +201,10 @@ export async function renderResponse({
   const userImage = `<img class="avatar" src="${userImageUrl}" />`
   const responseUserImage = `<img class="avatar" src="${logoBase64DataUri}" />`
   if (username) {
-    userHeader = `<p class="user">@${username}</p>`
+    if (!username.startsWith('@')) {
+      username = `@${username}`
+    }
+    userHeader = `<p class="user">${username}</p>`
   }
 
   let responseUserHeader = `<p class="user">${twitterBotHandle}</p>`
