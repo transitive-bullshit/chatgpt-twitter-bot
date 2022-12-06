@@ -35,7 +35,7 @@
   },
   "dependencies": {
     "@keyv/redis": "^2.5.3",
-    "chatgpt": "1.2.1",
+    "chatgpt": "1.4.0",
     "conf": "^10.2.0",
     "dotenv-safe": "^8.2.0",
     "franc": "^6.1.0",
@@ -46,7 +46,7 @@
     "p-map": "^5.5.0",
     "p-throttle": "^5.0.0",
     "p-timeout": "^6.0.0",
-    "puppeteer-render-text": "^2.1.1",
+    "puppeteer-render-text": "^2.1.2",
     "random": "^4.1.0",
     "rmfr": "^2.0.0",
     "tempy": "^3.0.0",
