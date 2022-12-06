@@ -30,7 +30,12 @@ export const languageAllowList = new Set([
   'ckb',
   'nds',
   'hat',
-  'sna'
+  'sna',
+  'snk',
+  'pam',
+  'ita',
+  'nso',
+  'vec'
 ])
 
 // These languages are only disallowed if tweetMode is `thread` since the current
