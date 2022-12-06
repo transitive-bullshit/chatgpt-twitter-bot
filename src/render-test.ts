@@ -25,8 +25,7 @@ async function main() {
   //                 arr[j], arr[j + 1] = arr[j + 1], arr[j]
   // \`\`\``
 
-  // const res = await renderResponse({ prompt, response, userImageUrl, username })
-  // const res = await renderResponse({ prompt, response })
+  const res = await renderResponse({ prompt, response, userImageUrl, username })
   return res
 }
 
