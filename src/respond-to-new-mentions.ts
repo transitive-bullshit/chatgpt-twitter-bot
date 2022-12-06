@@ -85,7 +85,6 @@ export async function respondToNewMentions({
 
     if (res.includes?.users?.length) {
       for (const user of res.includes.users) {
-        console.log('user', user)
         users[user.id] = user
       }
     }
@@ -131,6 +130,7 @@ export async function respondToNewMentions({
 
   const rUrl = urlRegex()
 
+  // TODO: add unit tests for this
   function getPrompt(text?: string): string {
     // strip usernames
     let prompt = text
@@ -151,12 +151,13 @@ export async function respondToNewMentions({
     return prompt
   }
 
+  // TODO: add unit tests for this
   function getNumMentionsInText(
     text?: string,
     { isReply }: { isReply?: boolean } = {}
   ) {
     const prefixText = isReply
-      ? (text.match(/^(\@[a-zA-Z0-9_]+,?\s+)+/g) || [])[0]
+      ? (text.match(/^(\@[a-zA-Z0-9_]+\b\s*)+/g) || [])[0]
       : text
     if (!prefixText) {
       return {
@@ -165,7 +166,7 @@ export async function respondToNewMentions({
       }
     }
 
-    const usernames = (prefixText.match(/\@[a-zA-Z0-9_]+,?\s/g) || []).map(
+    const usernames = (prefixText.match(/\@[a-zA-Z0-9_]+\b/g) || []).map(
       (u: string) => u.trim().toLowerCase().replace(',', '')
     )
     let numMentions = 0
