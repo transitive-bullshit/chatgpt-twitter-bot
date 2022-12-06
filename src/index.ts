@@ -12,10 +12,11 @@ async function main() {
   const dryRun = !!process.env.DRY_RUN
   const earlyExit = !!process.env.EARLY_EXIT
   const debugTweet = process.env.DEBUG_TWEET
-  const defaultSinceMentionId = process.env.SINCE_MENTION_ID
+  const defaultSinceMentionId = process.env.SINCE_ID
   const defaultRefreshToken = process.env.TWITTER_TOKEN
   const tweetMode: types.TweetMode =
     (process.env.TWEET_MODE as types.TweetMode) || 'image'
+  const forceReply = !!process.env.FORCE_REPLY
 
   const chatgpt = new ChatGPTAPI({
     sessionToken: process.env.SESSION_TOKEN!,
@@ -88,6 +89,7 @@ async function main() {
       const session = await respondToNewMentions({
         dryRun,
         earlyExit,
+        forceReply,
         debugTweet,
         chatgpt,
         twitter,
@@ -169,7 +171,11 @@ async function main() {
         await refreshTwitterAuthToken()
       }
     } catch (err) {
-      console.warn('top-level error', err)
+      console.error(
+        'top-level error',
+        err,
+        err.error?.errors ? JSON.stringify(err.error.errors, null, 2) : ''
+      )
       await delay(30000)
       await refreshTwitterAuthToken()
     }

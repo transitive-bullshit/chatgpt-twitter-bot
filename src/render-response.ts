@@ -172,7 +172,6 @@ export async function renderResponse({
         .trim()
     )
     .trim()
-  console.warn(responseInjection)
 
   let userHeader = ''
   const userImage = `<img class="avatar" src="${userImageUrl}" />`

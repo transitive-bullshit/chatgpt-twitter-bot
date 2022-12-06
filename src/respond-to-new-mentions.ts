@@ -32,6 +32,7 @@ import { getChatGPTResponse, getTweetsFromResponse, pick } from './utils'
 export async function respondToNewMentions({
   dryRun,
   earlyExit,
+  forceReply,
   debugTweet,
   chatgpt,
   twitter,
@@ -42,6 +43,7 @@ export async function respondToNewMentions({
 }: {
   dryRun: boolean
   earlyExit: boolean
+  forceReply?: boolean
   debugTweet?: string
   chatgpt: ChatGPTAPI
   twitter: types.TwitterClient
@@ -75,13 +77,15 @@ export async function respondToNewMentions({
         'conversation_id',
         'in_reply_to_user_id',
         'referenced_tweets'
-      ]
+      ],
+      'user.fields': ['profile_image_url']
     })
 
     mentions = mentions.concat(res.data)
 
     if (res.includes?.users?.length) {
       for (const user of res.includes.users) {
+        console.log('user', user)
         users[user.id] = user
       }
     }
@@ -101,6 +105,7 @@ export async function respondToNewMentions({
         'in_reply_to_user_id',
         'referenced_tweets'
       ],
+      'user.fields': ['profile_image_url'],
       max_results: 100,
       since_id: sinceMentionId
     })
@@ -255,24 +260,27 @@ export async function respondToNewMentions({
     // only process a max of 5 mentions at a time (the oldest ones first)
     .reverse()
 
-  mentions = (
-    await pMap(
-      mentions,
-      async (mention) => {
-        const res = await keyv.get(mention.id)
-        if (res) {
-          return null
-        } else {
-          return mention
+  if (!forceReply) {
+    // Filter any mentions which we've already replied to
+    mentions = (
+      await pMap(
+        mentions,
+        async (mention) => {
+          const res = await keyv.get(mention.id)
+          if (res) {
+            return null
+          } else {
+            return mention
+          }
+        },
+        {
+          concurrency: 8
         }
-      },
-      {
-        concurrency: 8
-      }
-    )
-  )
-    .filter(Boolean)
-    .slice(0, 5)
+      )
+    ).filter(Boolean)
+  }
+
+  mentions = mentions.slice(0, 5)
 
   console.log(
     `processing ${mentions.length} tweet mentions`,
@@ -451,6 +459,7 @@ export async function respondToNewMentions({
             responseTweetIds = tweets.map((tweet) => tweet.id)
           } else {
             const promptUser = users[mention.author_id]
+
             // render the response as an image
             const imageFilePath = await renderResponse({
               prompt,
@@ -480,7 +489,7 @@ export async function respondToNewMentions({
               ? null
               : await createTweet(
                   {
-                    text: '',
+                    // text: '',
                     reply: {
                       in_reply_to_tweet_id: promptTweetId
                     },

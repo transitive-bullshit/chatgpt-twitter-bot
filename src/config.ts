@@ -33,16 +33,16 @@ export const languageAllowList = new Set([
 ])
 
 export const languageDisallowList = new Set([
-  'jpn',
-  'cmn',
-  'zho',
-  'cth',
-  'yue',
-  'nan',
-  'nod',
-  'sou',
-  'tha',
-  'vie'
+  // 'jpn',
+  // 'cmn',
+  // 'zho',
+  // 'cth',
+  // 'yue',
+  // 'nan',
+  // 'nod',
+  // 'sou',
+  // 'tha',
+  // 'vie'
 ])
 
 // Optional redis instance for persisting responses
