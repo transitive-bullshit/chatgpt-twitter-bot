@@ -29,20 +29,23 @@ export const languageAllowList = new Set([
   'swe',
   'ckb',
   'nds',
-  'hat'
+  'hat',
+  'sna'
 ])
 
+// These languages are only disallowed if tweetMode is `thread` since the current
+// logic to split responses up into tweets relies on Western sentence structure.
 export const languageDisallowList = new Set([
-  // 'jpn',
-  // 'cmn',
-  // 'zho',
-  // 'cth',
-  // 'yue',
-  // 'nan',
-  // 'nod',
-  // 'sou',
-  // 'tha',
-  // 'vie'
+  'jpn',
+  'cmn',
+  'zho',
+  'cth',
+  'yue',
+  'nan',
+  'nod',
+  'sou',
+  'tha',
+  'vie'
 ])
 
 // Optional redis instance for persisting responses

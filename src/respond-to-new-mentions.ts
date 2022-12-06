@@ -357,7 +357,7 @@ export async function respondToNewMentions({
 
             // Check for languages that we know will cause problems for our code
             // and degrace gracefully with an error message.
-            if (languageDisallowList.has(lang)) {
+            if (tweetMode === 'thread' && languageDisallowList.has(lang)) {
               console.error()
               console.error('error: unsupported language detected in prompt', {
                 lang,
