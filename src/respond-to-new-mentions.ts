@@ -254,6 +254,24 @@ export async function respondToNewMentions({
     })
     // only process a max of 5 mentions at a time (the oldest ones first)
     .reverse()
+
+  mentions = (
+    await pMap(
+      mentions,
+      async (mention) => {
+        const res = await keyv.get(mention.id)
+        if (res) {
+          return null
+        } else {
+          return mention
+        }
+      },
+      {
+        concurrency: 8
+      }
+    )
+  )
+    .filter(Boolean)
     .slice(0, 5)
 
   console.log(
@@ -450,26 +468,30 @@ export async function respondToNewMentions({
               '\n' + response
             )
 
-            const mediaId = await twitterV1.uploadMedia(imageFilePath, {
-              type: 'jpg',
-              mimeType: 'image/jpeg',
-              target: 'tweet'
-            })
+            const mediaId = dryRun
+              ? null
+              : await twitterV1.uploadMedia(imageFilePath, {
+                  type: 'jpg',
+                  mimeType: 'image/jpeg',
+                  target: 'tweet'
+                })
 
-            const tweet = await createTweet(
-              {
-                text: '',
-                reply: {
-                  in_reply_to_tweet_id: promptTweetId
-                },
-                media: {
-                  media_ids: [mediaId]
-                }
-              },
-              twitter
-            )
+            const tweet = dryRun
+              ? null
+              : await createTweet(
+                  {
+                    text: '',
+                    reply: {
+                      in_reply_to_tweet_id: promptTweetId
+                    },
+                    media: {
+                      media_ids: [mediaId]
+                    }
+                  },
+                  twitter
+                )
 
-            responseTweetIds = [tweet.id]
+            responseTweetIds = [tweet?.id].filter(Boolean)
 
             // cleanup
             // await rmfr(imageFilePath)
