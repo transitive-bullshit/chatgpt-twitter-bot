@@ -10,6 +10,10 @@ export const twitterBotHandleL = twitterBotHandle.toLowerCase()
 
 export const tweetIgnoreList = new Set(['1599344387401863174'])
 
+export const priorityUsersList = new Set([
+  '327034465' // transitive_bs
+])
+
 export const languageAllowList = new Set([
   'eng',
   'sco',
@@ -42,8 +46,7 @@ export const languageAllowList = new Set([
   'fuv',
   'rmn',
   'por',
-  'tzm',
-  'cat'
+  'tzm'
 ])
 
 // These languages are only disallowed if tweetMode is `thread` since the current

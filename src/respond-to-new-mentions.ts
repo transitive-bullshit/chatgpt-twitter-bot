@@ -3,7 +3,6 @@ import delay from 'delay'
 import { franc } from 'franc'
 import { iso6393 } from 'iso-639-3'
 import pMap from 'p-map'
-import { TimeoutError } from 'p-timeout'
 import rmfr from 'rmfr'
 import urlRegex from 'url-regex'
 
@@ -264,7 +263,7 @@ export async function respondToNewMentions({
       // console.log(pick(mention, 'id', 'text', 'prompt'), { numMentions })
       return true
     })
-    // only process a max of 5 mentions at a time (the oldest ones first)
+    // Sort the oldest mentions first
     .reverse()
 
   if (!forceReply) {
@@ -287,6 +286,7 @@ export async function respondToNewMentions({
     ).filter(Boolean)
   }
 
+  // Only respond to at most 5 mentions at a time
   mentions = mentions.slice(0, 5)
 
   console.log(
@@ -297,6 +297,7 @@ export async function respondToNewMentions({
       prompt: mention.prompt
     }))
   )
+  console.log()
 
   const session: types.ChatGPTSession = {
     interactions: [],
@@ -314,8 +315,6 @@ export async function respondToNewMentions({
     return session
   }
 
-  // TODO: queue chat gpt requests one after another without waiting on twitter?
-  // maybe not worth it since rate limiting on ChatGPT's side is a thing...
   const results = (
     await pMap(
       mentions,
@@ -545,6 +544,7 @@ export async function respondToNewMentions({
           }
 
           console.log('interaction', result)
+          console.log()
 
           if (enableRedis && !dryRun) {
             await keyv.set(promptTweetId, { ...result, role: 'user' })

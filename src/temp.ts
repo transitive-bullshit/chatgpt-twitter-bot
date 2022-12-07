@@ -24,7 +24,9 @@ async function main() {
   await refreshTwitterAuthToken()
 
   const twitter = new Client(authClient)
-  const { data: user } = await twitter.users.findMyUser({
+
+  const { data: user } = await twitter.users.findUserByUsername('LofiGrind', {
+    // const { data: user } = await twitter.users.findMyUser({
     'user.fields': [
       'entities',
       'description',
