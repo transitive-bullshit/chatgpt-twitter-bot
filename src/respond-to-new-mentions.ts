@@ -621,6 +621,26 @@ export async function respondToNewMentions({
           ) {
             console.log('\nchatgpt rate limit\n')
             session.isRateLimited = true
+          } else if (
+            err.toString().toLowerCase() === 'error: chatgptapi error 503' ||
+            err.toString().toLowerCase() === 'error: chatgptapi error 502'
+          ) {
+            // TODO: for now, we won't worry about trying to deal with retrying these requests
+            isFinal = true
+
+            try {
+              if (!dryRun) {
+                await createTwitterThreadForChatGPTResponse({
+                  mention,
+                  twitter,
+                  tweetTexts: [
+                    `Uh-oh ChatGPT's servers are overwhelmed and responded with: "${err.toString()}". Sorry 😓\n\nRef: ${promptTweetId}`
+                  ]
+                })
+              }
+            } catch (err2) {
+              // ignore
+            }
           }
 
           return {
