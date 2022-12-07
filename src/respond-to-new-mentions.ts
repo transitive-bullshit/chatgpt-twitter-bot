@@ -615,7 +615,9 @@ export async function respondToNewMentions({
             } else if (err.type === 'twitter:rate-limit') {
               session.isRateLimitedTwitter = true
             }
-          } else if (err.toString() === 'Error: ChatGPTAPI error 429') {
+          } else if (
+            err.toString().toLowerCase() === 'error: chatgptapi error 429'
+          ) {
             console.log('\nchatgpt rate limit\n')
             session.isRateLimited = true
           }

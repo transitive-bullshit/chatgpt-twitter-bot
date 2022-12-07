@@ -50,7 +50,8 @@ export const languageAllowList = new Set([
   'rmn',
   'por',
   'tzm',
-  'tat'
+  'tat',
+  'bug'
 ])
 
 // These languages are only disallowed if tweetMode is `thread` since the current
