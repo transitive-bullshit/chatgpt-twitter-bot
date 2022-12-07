@@ -21,7 +21,7 @@ export const languageAllowList = new Set([
   'dan',
   'lun',
   'afr',
-  'arb', // TODO: tweet tokenization needs testing
+  'arb',
   'bcl',
   'som',
   'sot',
@@ -37,7 +37,13 @@ export const languageAllowList = new Set([
   'nso',
   'vec',
   'bum',
-  'ron'
+  'ron',
+  'lit',
+  'fuv',
+  'rmn',
+  'por',
+  'tzm',
+  'cat'
 ])
 
 // These languages are only disallowed if tweetMode is `thread` since the current

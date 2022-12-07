@@ -1,5 +1,6 @@
+import { type Role } from 'chatgpt'
 import { type Client as TwitterClient } from 'twitter-api-sdk'
-import { TwitterApiv1 } from 'twitter-api-v2'
+import { type TwitterApiv1 } from 'twitter-api-v2'
 import { type AsyncReturnType } from 'type-fest'
 
 export { TwitterClient }
@@ -11,6 +12,8 @@ export interface Config {
 }
 
 export interface ChatGPTInteraction {
+  role?: Role
+
   prompt: string
   promptTweetId: string
   promptUserId: string
@@ -20,6 +23,10 @@ export interface ChatGPTInteraction {
   response?: string
   responseTweetIds?: string[]
   responseMediaId?: string
+
+  chatgptConversationId?: string
+  chatgptParentMessageId?: string
+  chatgptMessageId?: string
 
   error?: string
   isErrorFinal?: boolean
@@ -32,6 +39,12 @@ export interface ChatGPTSession {
   isExpiredAuth: boolean
   isExpiredAuthTwitter: boolean
   sinceMentionId?: string
+}
+
+export interface ChatGPTResponse {
+  conversationId?: string
+  messageId?: string
+  response: string
 }
 
 export type Tweet = AsyncReturnType<

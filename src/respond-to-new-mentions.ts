@@ -3,7 +3,7 @@ import delay from 'delay'
 import { franc } from 'franc'
 import { iso6393 } from 'iso-639-3'
 import pMap from 'p-map'
-import pTimeout, { TimeoutError } from 'p-timeout'
+import { TimeoutError } from 'p-timeout'
 import rmfr from 'rmfr'
 import urlRegex from 'url-regex'
 
@@ -362,7 +362,6 @@ export async function respondToNewMentions({
           await delay(1000)
         }
 
-        let response: string
         try {
           // TODO: the `franc` module we're using for language detection doesn't
           // seem very accurate at inferrring english. It will often pick some
@@ -425,12 +424,41 @@ export async function respondToNewMentions({
             }
           }
 
-          response = await getChatGPTResponse(prompt, {
+          const repliedToTweetRef = mention.referenced_tweets?.find(
+            (t) => t.type === 'replied_to'
+          )
+          const repliedToTweet = repliedToTweetRef
+            ? tweets[repliedToTweetRef.id]
+            : null
+
+          if (repliedToTweet && repliedToTweet.author_id === user.id) {
+            const prevInteraction: types.ChatGPTInteraction = await keyv.get(
+              repliedToTweet.id
+            )
+
+            if (prevInteraction) {
+              console.log('prevInteraction', prevInteraction)
+
+              // prevInteraction.role should equal 'assistant'
+              result.chatgptConversationId =
+                prevInteraction.chatgptConversationId
+              result.chatgptParentMessageId = prevInteraction.chatgptMessageId
+            }
+          }
+
+          const chatgptResponse = await getChatGPTResponse(prompt, {
             chatgpt,
-            stripMentions: tweetMode === 'image' ? false : true
+            stripMentions: tweetMode === 'image' ? false : true,
+            conversationId: result.chatgptConversationId,
+            parentMessageId: result.chatgptParentMessageId
           })
 
+          console.log('chatgptResponse', chatgptResponse)
+          const response = chatgptResponse.response
           result.response = response
+          result.chatgptConversationId = chatgptResponse.conversationId
+          result.chatgptMessageId = chatgptResponse.messageId
+
           const responseL = response.toLowerCase()
           if (responseL.includes('too many requests, please slow down')) {
             session.isRateLimited = true
@@ -516,20 +544,32 @@ export async function respondToNewMentions({
             await rmfr(imageFilePath)
           }
 
+          console.log('interaction', result)
+
           if (enableRedis && !dryRun) {
-            await keyv.set(mention.id, result)
+            await keyv.set(promptTweetId, { ...result, role: 'user' })
+
+            if (result.responseTweetIds?.length) {
+              const responseLastTweetId =
+                result.responseTweetIds[result.responseTweetIds.length - 1]
+
+              await keyv.set(responseLastTweetId, {
+                ...result,
+                role: 'assistant'
+              })
+            }
           }
 
           return result
         } catch (err: any) {
           let isFinal = !!err.isFinal
 
-          if (err instanceof TimeoutError) {
+          if (err.name === 'TimeoutError') {
             // TODO: for now, we won't worry about trying to deal with retrying timeouts
             isFinal = true
 
             // reset chatgpt auth
-            session.isExpiredAuth = true
+            // session.isExpiredAuth = true
 
             try {
               if (!dryRun) {
@@ -544,6 +584,8 @@ export async function respondToNewMentions({
             } catch (err2) {
               // ignore
             }
+
+            await delay(10000)
           } else if (err instanceof types.ChatError) {
             if (err.type === 'twitter:auth') {
               // reset twitter auth
@@ -575,7 +617,7 @@ export async function respondToNewMentions({
     }
   }
 
-  if (minSinceMentionId) {
+  if (minSinceMentionId && !dryRun) {
     // follback to the earliest tweet which wasn't processed successfully
     sinceMentionId = minTwitterId(minSinceMentionId, sinceMentionId)
   }

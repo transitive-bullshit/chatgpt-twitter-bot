@@ -1,6 +1,8 @@
-import { type ChatGPTAPI } from 'chatgpt'
+import type { ChatGPTAPI, ConversationResponseEvent } from 'chatgpt'
 import winkNLPModel from 'wink-eng-lite-web-model'
 import winkNLP from 'wink-nlp'
+
+import * as types from './types'
 
 const nlp = winkNLP(winkNLPModel)
 
@@ -100,23 +102,44 @@ export async function getChatGPTResponse(
   prompt: string,
   {
     chatgpt,
-    stripMentions = false
+    stripMentions = false,
+    conversationId,
+    parentMessageId
   }: {
     chatgpt: ChatGPTAPI
     stripMentions?: boolean
+    conversationId?: string
+    parentMessageId?: string
   }
-): Promise<string> {
+): Promise<types.ChatGPTResponse> {
   let response: string
+  let messageId: string
+
+  const onConversationResponse = (res: ConversationResponseEvent) => {
+    if (res.conversation_id) {
+      conversationId = res.conversation_id
+    }
+
+    if (res.message?.id) {
+      messageId = res.message.id
+    }
+  }
 
   const threeMinutesMs = 3 * 60 * 1000
   try {
-    console.log('chatgpt.sendMessage', prompt)
+    console.log('chatgpt.sendMessage', prompt, {
+      conversationId,
+      parentMessageId
+    })
     response = await chatgpt.sendMessage(prompt, {
-      timeoutMs: threeMinutesMs
+      timeoutMs: threeMinutesMs,
+      conversationId,
+      parentMessageId,
+      onConversationResponse
     })
   } catch (err: any) {
     console.error('ChatGPT error', {
-      tweet: prompt,
+      prompt,
       error: err
     })
 
@@ -132,7 +155,11 @@ export async function getChatGPTResponse(
     throw new Error(`ChatGPT received an empty response`)
   }
 
-  return response
+  return {
+    response,
+    messageId,
+    conversationId
+  }
 }
 
 function stripAtMentions(text?: string) {
