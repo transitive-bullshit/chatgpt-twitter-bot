@@ -21,7 +21,8 @@ import { renderResponse } from './render-response'
 import {
   createTweet,
   createTwitterThreadForChatGPTResponse,
-  maxTwitterId
+  maxTwitterId,
+  minTwitterId
 } from './twitter'
 import { getChatGPTResponse, getTweetsFromResponse, pick } from './utils'
 
@@ -565,10 +566,18 @@ export async function respondToNewMentions({
     )
   ).filter(Boolean)
 
+  let minSinceMentionId: string = null
   for (const res of results) {
     if (!res.error || res.isErrorFinal) {
       updateSinceMentionId(res.promptTweetId)
+    } else {
+      minSinceMentionId = minTwitterId(minSinceMentionId, res.promptTweetId)
     }
+  }
+
+  if (minSinceMentionId) {
+    // follback to the earliest tweet which wasn't processed successfully
+    sinceMentionId = minTwitterId(minSinceMentionId, sinceMentionId)
   }
 
   session.interactions = results

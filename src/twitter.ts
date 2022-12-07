@@ -106,6 +106,36 @@ export function maxTwitterId(tweetIdA?: string, tweetIdB?: string): string {
 }
 
 /**
+ * Returns the smaller of two Twitter IDs, which is used in several places to
+ * keep track of the least recent tweet we've seen or processed.
+ */
+export function minTwitterId(tweetIdA?: string, tweetIdB?: string): string {
+  if (!tweetIdA && !tweetIdB) {
+    return null
+  }
+
+  if (!tweetIdA) {
+    return tweetIdB
+  }
+
+  if (!tweetIdB) {
+    return tweetIdA
+  }
+
+  if (tweetIdA.length < tweetIdB.length) {
+    return tweetIdA
+  } else if (tweetIdA.length > tweetIdB.length) {
+    return tweetIdB
+  }
+
+  if (tweetIdA < tweetIdB) {
+    return tweetIdA
+  }
+
+  return tweetIdB
+}
+
+/**
  * Tweets each tweet in the response thread serially one after the other.
  */
 export async function createTwitterThreadForChatGPTResponse({
