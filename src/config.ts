@@ -11,7 +11,9 @@ export const twitterBotHandleL = twitterBotHandle.toLowerCase()
 export const tweetIgnoreList = new Set(['1599344387401863174'])
 
 export const priorityUsersList = new Set([
-  '327034465' // transitive_bs
+  '327034465', // transitive_bs
+  '1235525929335689217', // LofiGrind (my test acct)
+  '1598922281434103808' // ChatGPTBot
 ])
 
 export const languageAllowList = new Set([

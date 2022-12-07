@@ -23,6 +23,7 @@ export interface ChatGPTInteraction {
   response?: string
   responseTweetIds?: string[]
   responseMediaId?: string
+  responseUrl?: string
 
   chatgptConversationId?: string
   chatgptParentMessageId?: string
@@ -47,15 +48,22 @@ export interface ChatGPTResponse {
   response: string
 }
 
-export type Tweet = AsyncReturnType<
-  TwitterClient['tweets']['findTweetsById']
->['data']
+type Unpacked<T> = T extends (infer U)[] ? U : T
+
+export type Tweet = Unpacked<
+  AsyncReturnType<TwitterClient['tweets']['findTweetsById']>['data']
+>
 export type TwitterUser = AsyncReturnType<
   TwitterClient['users']['findMyUser']
 >['data']
 export type CreatedTweet = AsyncReturnType<
   TwitterClient['tweets']['createTweet']
 >['data']
+
+export type TweetMention = Partial<Tweet> & {
+  prompt?: string
+  numMentions?: number
+}
 
 export type ChatErrorType =
   | 'unknown'

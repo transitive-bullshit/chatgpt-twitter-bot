@@ -62,9 +62,10 @@ export async function respondToNewMentions({
     sinceMentionId = maxTwitterId(sinceMentionId, tweetId)
   }
 
-  let mentions = []
-  let users = {}
-  let tweets = {}
+  // TODO: type these
+  let mentions: types.TweetMention[] = []
+  let users: Record<string, Partial<types.TwitterUser>> = {}
+  let tweets: Record<string, types.TweetMention> = {}
 
   if (debugTweet) {
     const ids = debugTweet.split(',').map((id) => id.trim())
@@ -238,14 +239,14 @@ export async function respondToNewMentions({
           updateSinceMentionId(mention.id)
           return false
         } else if (numMentions === 1) {
-          if (isReply && mention.in_reply_to_user_id === user.id) {
-            console.log('ignoring mention 1', mention, {
-              numMentions
-            })
-
-            updateSinceMentionId(mention.id)
-            return false
-          }
+          // TODO
+          // if (isReply && mention.in_reply_to_user_id !== user.id) {
+          //   console.log('ignoring mention 1', mention, {
+          //     numMentions
+          //   })
+          //   updateSinceMentionId(mention.id)
+          //   return false
+          // }
         }
       } else {
         console.log('ignoring mention 2', pick(mention, 'text', 'id'), {
@@ -543,16 +544,28 @@ export async function respondToNewMentions({
             await rmfr(imageFilePath)
           }
 
+          if (result.promptTweetId && result.promptUsername) {
+            result.promptUrl = `https://twitter.com/${result.promptUsername}/status/${result.promptTweetId}`
+          }
+
+          let responseLastTweetId: string
+          if (result.responseTweetIds?.length) {
+            responseLastTweetId =
+              result.responseTweetIds[result.responseTweetIds.length - 1]
+
+            result.responseUrl = `https://twitter.com/${twitterBotHandle.replace(
+              '@',
+              ''
+            )}/status/${responseLastTweetId}`
+          }
+
           console.log('interaction', result)
           console.log()
 
           if (enableRedis && !dryRun) {
             await keyv.set(promptTweetId, { ...result, role: 'user' })
 
-            if (result.responseTweetIds?.length) {
-              const responseLastTweetId =
-                result.responseTweetIds[result.responseTweetIds.length - 1]
-
+            if (responseLastTweetId) {
               await keyv.set(responseLastTweetId, {
                 ...result,
                 role: 'assistant'
