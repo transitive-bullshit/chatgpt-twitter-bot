@@ -125,14 +125,14 @@ export async function getChatGPTResponse(
     }
   }
 
-  const threeMinutesMs = 3 * 60 * 1000
+  const timeoutMs = 2 * 60 * 1000 // 2 minutes
   try {
     console.log('chatgpt.sendMessage', prompt, {
       conversationId,
       parentMessageId
     })
     response = await chatgpt.sendMessage(prompt, {
-      timeoutMs: threeMinutesMs,
+      timeoutMs: timeoutMs,
       conversationId,
       parentMessageId,
       onConversationResponse

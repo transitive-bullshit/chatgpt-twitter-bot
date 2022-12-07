@@ -368,7 +368,7 @@ export async function respondToNewMentions({
 
         if (index > 0) {
           // slight slow down between ChatGPT requests
-          await delay(2000)
+          await delay(5000)
         }
 
         try {
