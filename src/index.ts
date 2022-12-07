@@ -171,6 +171,7 @@ async function main() {
         // sleep if there were no mentions to process
         await delay(30000) // 30s
       } else {
+        console.log('sleeping...')
         // still sleep if there are active mentions because of rate limits...
         await delay(15000)
       }
