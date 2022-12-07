@@ -396,21 +396,20 @@ export async function respondToNewMentions({
 
               const mentionAuthorUsername = users[mention.author_id]?.username
 
-              const tweets = dryRun
-                ? []
-                : await createTwitterThreadForChatGPTResponse({
-                    mention,
-                    twitter,
-                    tweetTexts: [
-                      `${
-                        mentionAuthorUsername
-                          ? `Hey @${mentionAuthorUsername}, we're sorry but `
-                          : "We're sorry but "
-                      }${
-                        langName === 'unknown' ? 'your prompt' : langName
-                      } is currently not supported by this chatbot. We apologize for the inconvenience and will be adding support for more languages soon.\n\nRef: ${promptTweetId}`
-                    ]
-                  })
+              const tweets = await createTwitterThreadForChatGPTResponse({
+                mention,
+                twitter,
+                tweetTexts: [
+                  `${
+                    mentionAuthorUsername
+                      ? `Hey @${mentionAuthorUsername}, we're sorry but `
+                      : "We're sorry but "
+                  }${
+                    langName === 'unknown' ? 'your prompt' : langName
+                  } is currently not supported by this chatbot. We apologize for the inconvenience and will be adding support for more languages soon.\n\nRef: ${promptTweetId}`
+                ],
+                dryRun
+              })
 
               const responseTweetIds = tweets.map((tweet) => tweet.id)
               return {
@@ -495,13 +494,12 @@ export async function respondToNewMentions({
               JSON.stringify(tweetTexts, null, 2)
             )
 
-            const tweets = dryRun
-              ? []
-              : await createTwitterThreadForChatGPTResponse({
-                  mention,
-                  tweetTexts,
-                  twitter
-                })
+            const tweets = await createTwitterThreadForChatGPTResponse({
+              mention,
+              tweetTexts,
+              twitter,
+              dryRun
+            })
 
             result.responseTweetIds = tweets.map((tweet) => tweet.id)
           } else {
@@ -532,20 +530,18 @@ export async function respondToNewMentions({
                   target: 'tweet'
                 })
 
-            const tweet = dryRun
-              ? null
-              : await createTweet(
-                  {
-                    // text: '',
-                    reply: {
-                      in_reply_to_tweet_id: promptTweetId
-                    },
-                    media: {
-                      media_ids: [mediaId]
-                    }
-                  },
-                  twitter
-                )
+            const tweet = await createTweet(
+              {
+                // text: '',
+                media: {
+                  media_ids: [mediaId]
+                },
+                reply: {
+                  in_reply_to_tweet_id: promptTweetId
+                }
+              },
+              { twitter, dryRun }
+            )
 
             result.responseMediaId = mediaId
             result.responseTweetIds = [tweet?.id].filter(Boolean)
@@ -596,16 +592,26 @@ export async function respondToNewMentions({
 
             try {
               if (!dryRun) {
-                await createTwitterThreadForChatGPTResponse({
-                  mention,
-                  twitter,
-                  tweetTexts: [
-                    `Uh-oh ChatGPT timed out responding to your prompt. Sorry 😓\n\nRef: ${promptTweetId}`
-                  ]
-                })
+                const tweet = await createTweet(
+                  {
+                    text: `Uh-oh ChatGPT timed out responding to your prompt. Sorry 😓\n\nRef: ${promptTweetId}`,
+                    reply: {
+                      in_reply_to_tweet_id: promptTweetId
+                    }
+                  },
+                  {
+                    twitter,
+                    dryRun
+                  }
+                )
+
+                result.responseTweetIds = [tweet?.id].filter(Boolean)
               }
             } catch (err2) {
-              // ignore
+              console.warn(
+                `warning: twitter error responding to tweet after ChatGPT timeout`,
+                err2.toString()
+              )
             }
 
             await delay(10000)
@@ -630,16 +636,28 @@ export async function respondToNewMentions({
 
             try {
               if (!dryRun) {
-                await createTwitterThreadForChatGPTResponse({
-                  mention,
-                  twitter,
-                  tweetTexts: [
-                    `Uh-oh ChatGPT's servers are overwhelmed and responded with: "${err.toString()}". Sorry 😓\n\nRef: ${promptTweetId}`
-                  ]
-                })
+                const tweet = await createTweet(
+                  {
+                    text: `Uh-oh ChatGPT's servers are overwhelmed and responded with: "${err.toString()}". Sorry 😓\n\nRef: ${promptTweetId}`,
+                    reply: {
+                      in_reply_to_tweet_id: promptTweetId
+                    }
+                  },
+                  {
+                    twitter,
+                    dryRun
+                  }
+                )
+
+                result.responseTweetIds = [tweet?.id].filter(Boolean)
               }
             } catch (err2) {
-              // ignore
+              // ignore follow-up errors
+              console.warn(
+                `warning: twitter error responding to tweet after ChatGPT error`,
+                err.toString,
+                err2.toString()
+              )
             }
           }
 

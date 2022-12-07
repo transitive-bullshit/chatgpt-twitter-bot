@@ -1,6 +1,6 @@
 {
   "name": "chatgpt-twitter-bot",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "private": true,
   "description": "Twitter bot powered by OpenAI's ChatGPT.",
   "author": "Travis Fischer <travis@transitivebullsh.it>",

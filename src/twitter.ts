@@ -19,10 +19,18 @@ export const createTweet = throttle1(throttle2(createTweetImpl))
 
 async function createTweetImpl(
   args: Parameters<types.TwitterClient['tweets']['createTweet']>[0],
-  client: types.TwitterClient
+  {
+    twitter,
+    dryRun
+  }: {
+    twitter: types.TwitterClient
+    dryRun?: boolean
+  }
 ) {
+  if (dryRun) return null
+
   try {
-    const res = await client.tweets.createTweet(args)
+    const res = await twitter.tweets.createTweet(args)
     const tweet = res?.data
 
     if (tweet?.id) {
@@ -141,11 +149,13 @@ export function minTwitterId(tweetIdA?: string, tweetIdB?: string): string {
 export async function createTwitterThreadForChatGPTResponse({
   mention,
   tweetTexts,
-  twitter
+  twitter,
+  dryRun
 }: {
   mention?: any
   tweetTexts: string[]
   twitter?: types.TwitterClient
+  dryRun?: boolean
 }): Promise<types.CreatedTweet[]> {
   let prevTweet = mention
 
@@ -160,15 +170,12 @@ export async function createTwitterThreadForChatGPTResponse({
           : undefined
 
         // Note: this call is rate-limited on our side
-        const tweet = await createTweet(
-          {
-            text,
-            reply
-          },
-          twitter
-        )
+        const tweet = await createTweet({ text, reply }, { twitter, dryRun })
 
-        prevTweet = tweet
+        if (tweet) {
+          prevTweet = tweet
+        }
+
         console.log('tweet response', JSON.stringify(tweet, null, 2))
         return tweet
       },
