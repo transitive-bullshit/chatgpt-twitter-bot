@@ -98,6 +98,11 @@ def bubble_sort(arr):
       'To the hardworking web developers, who make our online world rank\n' +
       'For they bring joy and cheer, with their coding skills so fine\n' +
       'Merry Christmas to all, and to all a good time!'
+  },
+
+  {
+    prompt: 'What is 1+11?',
+    response: '1+11 = 12'
   }
 ]
 

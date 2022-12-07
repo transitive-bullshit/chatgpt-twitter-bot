@@ -19,6 +19,7 @@ export interface ChatGPTInteraction {
 
   response?: string
   responseTweetIds?: string[]
+  responseMediaId?: string
 
   error?: string
   isErrorFinal?: boolean

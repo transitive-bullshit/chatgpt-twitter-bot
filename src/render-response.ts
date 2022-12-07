@@ -8,6 +8,7 @@ import { temporaryFile } from 'tempy'
 import { twitterBotHandle } from './config'
 import { logoBase64DataUri } from './logo-base64'
 
+const minWidth = 640
 const maxWidth = 1360
 
 const backgroundImages = [
@@ -36,7 +37,7 @@ body {
 }
 
 .wrapper {
-  min-width: 300px;
+  min-width: ${minWidth}px;
   max-width: ${maxWidth}px;
   padding: 32px;
   background-image: url("https://kwote.app/_next/static/media/20.8f22c4bc.jpg");
@@ -49,6 +50,7 @@ body {
 }
 
 .content {
+  min-width: ${minWidth - 32 * 2}px;
   background: #444654;
   color: #eee;
 

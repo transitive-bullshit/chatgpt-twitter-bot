@@ -108,13 +108,12 @@ export async function getChatGPTResponse(
 ): Promise<string> {
   let response: string
 
+  const threeMinutesMs = 3 * 60 * 1000
   try {
     console.log('chatgpt.sendMessage', prompt)
-    response = await chatgpt.sendMessage(
-      prompt
-      // for debugging slow prompts
-      // , { onProgress: (r) => console.log('chatgpt...', r) }
-    )
+    response = await chatgpt.sendMessage(prompt, {
+      timeoutMs: threeMinutesMs
+    })
   } catch (err: any) {
     console.error('ChatGPT error', {
       tweet: prompt,

@@ -1,5 +1,8 @@
 import { renderResponse } from './render-response'
 
+/**
+ * CLI for testing the image rendering.
+ */
 async function main() {
   const userImageUrl =
     'https://pbs.twimg.com/profile_images/1235530549067943937/6BQE9kbQ_400x400.jpg'

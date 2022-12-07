@@ -5,7 +5,7 @@ specifiers:
   '@trivago/prettier-plugin-sort-imports': ^4.0.0
   '@types/node': ^18.11.9
   ava: ^5.1.0
-  chatgpt: 1.4.0
+  chatgpt: 2.0.0
   conf: ^10.2.0
   del-cli: ^5.0.0
   delay: ^5.0.0
@@ -42,7 +42,7 @@ specifiers:
 
 dependencies:
   '@keyv/redis': 2.5.3
-  chatgpt: 1.4.0
+  chatgpt: 2.0.0
   conf: 10.2.0
   dotenv-safe: 8.2.0
   franc: 6.1.0
@@ -831,6 +831,14 @@ packages:
       load-tsconfig: 0.2.3
     dev: true
 
+  /busboy/1.6.0:
+    resolution: {integrity: sha512-8SFQbg/0hQ9xy3UNTB0YEnsNBbWfhf7RtnzpL7TkBiTBRfrQ9Fxcnz7VJsleJpyp6rVLvXiuORqjlHi5q+PYuA==}
+    engines: {node: '>=10.16.0'}
+    dependencies:
+      streamsearch: 1.1.0
+    dev: false
+    optional: true
+
   /cac/6.7.14:
     resolution: {integrity: sha512-b6Ilus+c3RrdDk+JhLKUAQfzzgLEPy6wcXqS7f/xe1EETvsDP6GORG7SFuOs6cID5YkqchW/LXZbX5bc8j7ZcQ==}
     engines: {node: '>=8'}
@@ -895,18 +903,19 @@ packages:
     resolution: {integrity: sha512-shx7oQ0Awen/BRIdkjkvz54PnEEI/EjwXDSIZp86/KKdbafHh1Df/RYGBhn4hbe2+uKC9FnT5UCEdyPz3ai9hQ==}
     dev: false
 
-  /chatgpt/1.4.0:
-    resolution: {integrity: sha512-954YN2XTaICfi6ELTEJKC/ueVSiFiqoK1bRxbzzp7aJZbzBM6eGOY8WsL3REzFuTiGkDZurbxDzHEslmMLKk7A==}
-    engines: {node: '>=14'}
+  /chatgpt/2.0.0:
+    resolution: {integrity: sha512-QJm29PyECX44QUURDwKTQlY5TUWheEPIUW4fNRnvgC1KeXhoVG0noMmGPpc57/jUEFXtoZfzqOLkytIWw3lhlQ==}
+    engines: {node: '>=16.8'}
     dependencies:
       eventsource-parser: 0.0.5
       expiry-map: 2.0.0
-      node-fetch: 2.6.7
+      p-timeout: 6.0.0
       remark: 14.0.2
       strip-markdown: 5.0.0
       uuid: 9.0.0
+    optionalDependencies:
+      undici: 5.13.0
     transitivePeerDependencies:
-      - encoding
       - supports-color
     dev: false
 
@@ -3781,6 +3790,12 @@ packages:
     resolution: {integrity: sha512-qoRRSyROncaz1z0mvYqIE4lCd9p2R90i6GxW3uZv5ucSu8tU7B5HXUP1gG8pVZsYNVaXjk8ClXHPttLyxAL48A==}
     dev: false
 
+  /streamsearch/1.1.0:
+    resolution: {integrity: sha512-Mcc5wHehp9aXz1ax6bZUyY5afg9u2rv5cqQI3mRrYkGC8rW2hM02jWuwjtL++LS5qinSyhj2QfLyNsuc+VsExg==}
+    engines: {node: '>=10.0.0'}
+    dev: false
+    optional: true
+
   /string-argv/0.3.1:
     resolution: {integrity: sha512-a1uQGz7IyVy9YwhqjZIZu1c8JO8dNIe20xBmSS6qu9kv++k3JGzCVmprbNN5Kn+BgzD5E7YYwg1CcjuJMRNsvg==}
     engines: {node: '>=0.6.19'}
@@ -4170,6 +4185,15 @@ packages:
       buffer: 5.7.1
       through: 2.3.8
     dev: false
+
+  /undici/5.13.0:
+    resolution: {integrity: sha512-UDZKtwb2k7KRsK4SdXWG7ErXiL7yTGgLWvk2AXO1JMjgjh404nFo6tWSCM2xMpJwMPx3J8i/vfqEh1zOqvj82Q==}
+    engines: {node: '>=12.18'}
+    requiresBuild: true
+    dependencies:
+      busboy: 1.6.0
+    dev: false
+    optional: true
 
   /unified/10.1.2:
     resolution: {integrity: sha512-pUSWAi/RAnVy1Pif2kAoeWNBa3JVrx0MId2LASj8G+7AiHWoKZNTomq6LG326T68U7/e263X6fTdcXIy7XnF7Q==}

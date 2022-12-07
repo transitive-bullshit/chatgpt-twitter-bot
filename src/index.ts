@@ -83,6 +83,7 @@ async function main() {
 
   let interactions: types.ChatGPTInteraction[] = []
   let loopNum = 0
+  let numErrors = 0
   do {
     try {
       console.log()
@@ -119,7 +120,7 @@ async function main() {
 
       const sessionInteractions = session.interactions?.map((interaction) => {
         if (interaction.promptTweetId && interaction.promptUsername) {
-          interaction.promptUrl = `https://twitter.com/${interaction.promptUsername}/status/${interaction.promptUserId}`
+          interaction.promptUrl = `https://twitter.com/${interaction.promptUsername}/status/${interaction.promptTweetId}`
         }
 
         return interaction
@@ -138,9 +139,20 @@ async function main() {
       }
 
       if (session.isExpiredAuth) {
-        throw new Error(
-          'ChatGPT auth expired error; unrecoverable. Please update SESSION_TOKEN'
-        )
+        if (++numErrors > 5) {
+          throw new Error(
+            'ChatGPT auth expired error; unrecoverable. Please update SESSION_TOKEN'
+          )
+        } else {
+          console.log(
+            '\n\nChatGPT auth expired error; possibly unrecoverable. Please update SESSION_TOKEN\n\n'
+          )
+          console.error(
+            '\n\nChatGPT auth expired error; possibly unrecoverable. Please update SESSION_TOKEN\n\n'
+          )
+
+          await delay(30000) // 30s
+        }
       }
 
       if (session.isRateLimited || session.isRateLimitedTwitter) {

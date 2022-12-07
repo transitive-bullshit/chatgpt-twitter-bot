@@ -136,6 +136,7 @@ export async function respondToNewMentions({
     let prompt = text
       .replace(twitterBotHandleL, '')
       .replace(twitterBotHandle, '')
+      .trim()
       .replace(/^\s*@[a-zA-Z0-9_]+/g, '')
       .replace(/^\s*@[a-zA-Z0-9_]+/g, '')
       .replace(/^\s*@[a-zA-Z0-9_]+/g, '')
@@ -194,6 +195,12 @@ export async function respondToNewMentions({
       }
 
       const text = mention.text
+      mention.prompt = getPrompt(text)
+
+      if (!mention.prompt) {
+        return false
+      }
+
       const repliedToTweetRef = mention.referenced_tweets?.find(
         (t) => t.type === 'replied_to'
       )
@@ -209,12 +216,6 @@ export async function respondToNewMentions({
           )
         })
         repliedToTweet.numMentions = subMentions.numMentions
-      }
-
-      mention.prompt = getPrompt(text)
-
-      if (!mention.prompt) {
-        return false
       }
 
       const { numMentions, usernames } = getNumMentionsInText(text)
@@ -330,39 +331,29 @@ export async function respondToNewMentions({
         }
 
         if (session.isRateLimited) {
-          return {
-            ...result,
-            error: 'ChatGPT rate limited'
-          }
+          result.error = 'ChatGPT rate limited'
+          return result
         }
 
         if (session.isRateLimitedTwitter) {
-          return {
-            ...result,
-            error: 'Twitter rate limited'
-          }
+          result.error = 'Twitter rate limited'
+          return result
         }
 
         if (session.isExpiredAuth) {
-          return {
-            ...result,
-            error: 'ChatGPT auth expired'
-          }
+          result.error = 'ChatGPT auth expired'
+          return result
         }
 
         if (session.isExpiredAuthTwitter) {
-          return {
-            ...result,
-            error: 'Twitter auth expired'
-          }
+          result.error = 'Twitter auth expired'
+          return result
         }
 
         if (!prompt) {
-          return {
-            ...result,
-            error: 'empty prompt',
-            isErrorFinal: true
-          }
+          result.error = 'empty prompt'
+          result.isErrorFinal = true
+          return result
         }
 
         if (index > 0) {
@@ -433,17 +424,10 @@ export async function respondToNewMentions({
             }
           }
 
-          const threeMinutesMs = 3 * 60 * 1000
-          response = await pTimeout(
-            getChatGPTResponse(prompt, {
-              chatgpt,
-              stripMentions: tweetMode === 'image' ? false : true
-            }),
-            {
-              milliseconds: threeMinutesMs,
-              message: 'ChatGPT timed out waiting for response'
-            }
-          )
+          response = await getChatGPTResponse(prompt, {
+            chatgpt,
+            stripMentions: tweetMode === 'image' ? false : true
+          })
 
           result.response = response
           const responseL = response.toLowerCase()
@@ -459,8 +443,6 @@ export async function respondToNewMentions({
             session.isExpiredAuth = true
             return null
           }
-
-          let responseTweetIds: string[] = []
 
           if (tweetMode === 'thread') {
             // convert the response to tweet-sized chunks
@@ -482,7 +464,7 @@ export async function respondToNewMentions({
                   twitter
                 })
 
-            responseTweetIds = tweets.map((tweet) => tweet.id)
+            result.responseTweetIds = tweets.map((tweet) => tweet.id)
           } else {
             const promptUser = users[mention.author_id]
 
@@ -526,13 +508,12 @@ export async function respondToNewMentions({
                   twitter
                 )
 
-            responseTweetIds = [tweet?.id].filter(Boolean)
+            result.responseMediaId = mediaId
+            result.responseTweetIds = [tweet?.id].filter(Boolean)
 
             // cleanup
-            // await rmfr(imageFilePath)
+            await rmfr(imageFilePath)
           }
-
-          result.responseTweetIds = responseTweetIds
 
           if (enableRedis && !dryRun) {
             await keyv.set(mention.id, result)
