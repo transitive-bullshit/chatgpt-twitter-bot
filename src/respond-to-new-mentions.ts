@@ -11,6 +11,7 @@ import {
   enableRedis,
   languageAllowList,
   languageDisallowList,
+  priorityUsersList,
   tweetIgnoreList,
   twitterBotHandle,
   twitterBotHandleL
@@ -239,7 +240,7 @@ export async function respondToNewMentions({
           updateSinceMentionId(mention.id)
           return false
         } else if (numMentions === 1) {
-          // TODO
+          // TODO: I don't think this is necessary anymore
           // if (isReply && mention.in_reply_to_user_id !== user.id) {
           //   console.log('ignoring mention 1', mention, {
           //     numMentions
@@ -289,6 +290,14 @@ export async function respondToNewMentions({
 
   // Only respond to at most 5 mentions at a time
   mentions = mentions.slice(0, 5)
+
+  const highPriorityMentions = mentions.filter((mention) =>
+    priorityUsersList.has(mention.author_id)
+  )
+  const normalPriorityMentions = mentions.filter(
+    (mention) => !priorityUsersList.has(mention.author_id)
+  )
+  mentions = highPriorityMentions.concat(normalPriorityMentions)
 
   console.log(
     `processing ${mentions.length} tweet mentions`,
