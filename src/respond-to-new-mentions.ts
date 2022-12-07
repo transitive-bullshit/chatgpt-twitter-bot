@@ -368,7 +368,7 @@ export async function respondToNewMentions({
 
         if (index > 0) {
           // slight slow down between ChatGPT requests
-          await delay(1000)
+          await delay(2000)
         }
 
         try {
@@ -615,6 +615,9 @@ export async function respondToNewMentions({
             } else if (err.type === 'twitter:rate-limit') {
               session.isRateLimitedTwitter = true
             }
+          } else if (err.toString() === 'Error: ChatGPTAPI error 429') {
+            console.log('\nchatgpt rate limit\n')
+            session.isRateLimited = true
           }
 
           return {

@@ -153,8 +153,7 @@ async function main() {
             session.isRateLimited ? 'chatgpt' : 'twitter'
           }; sleeping...`
         )
-        await delay(30000) // 30s
-        await delay(30000) // 30s
+        await delay(5 * 60 * 1000) // 5m
 
         if (session.isRateLimitedTwitter) {
           console.log('sleeping longer for twitter rate limit...')
@@ -173,7 +172,7 @@ async function main() {
         await delay(30000) // 30s
       } else {
         // still sleep if there are active mentions because of rate limits...
-        await delay(5000) // 5s
+        await delay(15000)
       }
 
       ++loopNum
