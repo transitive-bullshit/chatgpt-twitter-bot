@@ -60,6 +60,8 @@ export async function respondToNewMentions({
 }): Promise<types.ChatGPTSession> {
   console.log('fetching mentions since', sinceMentionId || 'forever')
 
+  let minSinceMentionId: string = null
+
   function updateSinceMentionId(tweetId: string) {
     if (dryRun || !tweetId) {
       return
@@ -85,7 +87,7 @@ export async function respondToNewMentions({
         'in_reply_to_user_id',
         'referenced_tweets'
       ],
-      'user.fields': ['profile_image_url']
+      'user.fields': ['profile_image_url', 'public_metrics']
     })
 
     mentions = mentions.concat(res.data)
@@ -111,7 +113,7 @@ export async function respondToNewMentions({
         'in_reply_to_user_id',
         'referenced_tweets'
       ],
-      'user.fields': ['profile_image_url'],
+      'user.fields': ['profile_image_url', 'public_metrics'],
       max_results: 100,
       since_id: sinceMentionId
     })
@@ -294,22 +296,64 @@ export async function respondToNewMentions({
   }
 
   // Only respond to at most 5 mentions at a time
-  mentions = mentions.slice(0, 5)
+  const maxNumMentionsToProcess = 5
+  const numMentionCandidates = mentions.length
 
-  const highPriorityMentions = mentions.filter((mention) =>
-    priorityUsersList.has(mention.author_id)
-  )
-  const normalPriorityMentions = mentions.filter(
-    (mention) => !priorityUsersList.has(mention.author_id)
-  )
-  mentions = highPriorityMentions.concat(normalPriorityMentions)
+  for (let i = 0; i < numMentionCandidates; ++i) {
+    const mention = mentions[i]
+    let score = (numMentionCandidates - i) / numMentionCandidates
+
+    const repliedToTweetRef = mention.referenced_tweets?.find(
+      (t) => t.type === 'replied_to'
+    )
+    const isReply = !!repliedToTweetRef
+    mention.isReply = isReply
+
+    if (isReply) {
+      score -= 5
+    }
+
+    if (priorityUsersList.has(mention.author_id)) {
+      score += 10000
+    }
+
+    const mentionUser = users[mention.author_id]
+    if (mentionUser) {
+      mention.promptUrl = getTweetUrl({
+        username: mentionUser.username,
+        id: mention.id
+      })
+
+      const numFollowers = mentionUser?.public_metrics?.followers_count
+      if (numFollowers) {
+        mention.numFollowers = numFollowers
+        score += numFollowers / 1000
+      }
+    }
+
+    mention.priorityScore = score
+  }
+
+  mentions.sort((a, b) => b.priorityScore - a.priorityScore)
+
+  for (let i = maxNumMentionsToProcess; i < mentions.length; ++i) {
+    const mention = mentions[i]
+
+    // make sure we don't skip past these mentions on the next batch
+    minSinceMentionId = minTwitterId(minSinceMentionId, mention.id)
+  }
+  mentions = mentions.slice(0, 5)
 
   console.log(
     `processing ${mentions.length} tweet mentions`,
     mentions.map((mention) => ({
       id: mention.id,
       text: mention.text,
-      prompt: mention.prompt
+      prompt: mention.prompt,
+      promptUrl: mention.promptUrl,
+      isReply: mention.isReply,
+      numFollowers: mention.numFollowers,
+      priorityScore: mention.priorityScore
     }))
   )
   console.log()
@@ -463,6 +507,16 @@ export async function respondToNewMentions({
               result.chatgptParentMessageId = prevInteraction.chatgptMessageId
             }
           }
+
+          console.log('processing', {
+            id: mention.id,
+            text: mention.text,
+            prompt: mention.prompt,
+            promptUrl: mention.promptUrl,
+            isReply: mention.isReply,
+            numFollowers: mention.numFollowers,
+            priorityScore: mention.priorityScore
+          })
 
           const chatgptResponse = await getChatGPTResponse(prompt, {
             chatgpt,
@@ -676,7 +730,6 @@ export async function respondToNewMentions({
     )
   ).filter(Boolean)
 
-  let minSinceMentionId: string = null
   for (const res of results) {
     if (!res.error || res.isErrorFinal) {
       updateSinceMentionId(res.promptTweetId)
@@ -685,7 +738,7 @@ export async function respondToNewMentions({
     }
   }
 
-  if (minSinceMentionId && !dryRun) {
+  if (minSinceMentionId) {
     // follback to the earliest tweet which wasn't processed successfully
     sinceMentionId = minTwitterId(minSinceMentionId, sinceMentionId)
   }

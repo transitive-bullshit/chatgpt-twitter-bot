@@ -7,6 +7,74 @@ import * as types from './types'
 const nlp = winkNLP(winkNLPModel)
 
 /**
+ * Asks ChatGPT for a response to a prompt
+ */
+export async function getChatGPTResponse(
+  prompt: string,
+  {
+    chatgpt,
+    conversationId,
+    parentMessageId,
+    stripMentions = false,
+    timeoutMs = 2 * 60 * 1000 // 2 minutes
+  }: {
+    chatgpt: ChatGPTAPI
+    conversationId?: string
+    parentMessageId?: string
+    stripMentions?: boolean
+    timeoutMs?: number
+  }
+): Promise<types.ChatGPTResponse> {
+  let response: string
+  let messageId: string
+
+  const onConversationResponse = (res: ConversationResponseEvent) => {
+    if (res.conversation_id) {
+      conversationId = res.conversation_id
+    }
+
+    if (res.message?.id) {
+      messageId = res.message.id
+    }
+  }
+
+  try {
+    console.log('chatgpt.sendMessage', prompt, {
+      conversationId,
+      parentMessageId
+    })
+    response = await chatgpt.sendMessage(prompt, {
+      timeoutMs: timeoutMs,
+      conversationId,
+      parentMessageId,
+      onConversationResponse
+    })
+  } catch (err: any) {
+    console.error('ChatGPT error', {
+      prompt,
+      error: err
+    })
+
+    throw new Error(`ChatGPT error: ${err.toString()}`)
+  }
+
+  response = response?.trim()
+  if (stripMentions) {
+    response = stripAtMentions(response)?.trim()
+  }
+
+  if (!response) {
+    throw new Error(`ChatGPT received an empty response`)
+  }
+
+  return {
+    response,
+    messageId,
+    conversationId
+  }
+}
+
+/**
  * Converts a ChatGPT response string to an array of tweet-sized strings.
  */
 export function getTweetsFromResponse(response: string): string[] {
@@ -93,73 +161,6 @@ export function getTweetsFromResponse(response: string): string[] {
   })
 
   return tweets
-}
-
-/**
- * Asks ChatGPT for a response to a prompt
- */
-export async function getChatGPTResponse(
-  prompt: string,
-  {
-    chatgpt,
-    stripMentions = false,
-    conversationId,
-    parentMessageId
-  }: {
-    chatgpt: ChatGPTAPI
-    stripMentions?: boolean
-    conversationId?: string
-    parentMessageId?: string
-  }
-): Promise<types.ChatGPTResponse> {
-  let response: string
-  let messageId: string
-
-  const onConversationResponse = (res: ConversationResponseEvent) => {
-    if (res.conversation_id) {
-      conversationId = res.conversation_id
-    }
-
-    if (res.message?.id) {
-      messageId = res.message.id
-    }
-  }
-
-  const timeoutMs = 2 * 60 * 1000 // 2 minutes
-  try {
-    console.log('chatgpt.sendMessage', prompt, {
-      conversationId,
-      parentMessageId
-    })
-    response = await chatgpt.sendMessage(prompt, {
-      timeoutMs: timeoutMs,
-      conversationId,
-      parentMessageId,
-      onConversationResponse
-    })
-  } catch (err: any) {
-    console.error('ChatGPT error', {
-      prompt,
-      error: err
-    })
-
-    throw new Error(`ChatGPT error: ${err.toString()}`)
-  }
-
-  response = response?.trim()
-  if (stripMentions) {
-    response = stripAtMentions(response)?.trim()
-  }
-
-  if (!response) {
-    throw new Error(`ChatGPT received an empty response`)
-  }
-
-  return {
-    response,
-    messageId,
-    conversationId
-  }
 }
 
 function stripAtMentions(text?: string) {

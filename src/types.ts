@@ -63,6 +63,10 @@ export type CreatedTweet = AsyncReturnType<
 export type TweetMention = Partial<Tweet> & {
   prompt?: string
   numMentions?: number
+  priorityScore?: number
+  numFollowers?: number
+  promptUrl?: string
+  isReply?: boolean
 }
 
 export type ChatErrorType =

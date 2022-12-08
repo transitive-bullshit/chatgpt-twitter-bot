@@ -173,7 +173,7 @@ async function main() {
       } else {
         console.log('sleeping...')
         // still sleep if there are active mentions because of rate limits...
-        await delay(15000)
+        await delay(10000)
       }
 
       ++loopNum
