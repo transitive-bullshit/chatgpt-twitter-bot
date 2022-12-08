@@ -91,12 +91,12 @@ export async function getTweetMentionsBatch({
 
   // Score every valid mention candidate according to a heuristic depending on
   // how important it is to respond to. Some factors taken into consideration:
-  // - top-level tweets are ranked higher than replies
-  // - accounts with lots of followers are prioritized because they have a larger
-  // surface area for exposure
-  // - a fixed set of "priority users" is prioritized highest for testing
-  // purposes; this includes me and my test accounts
-  // - older tweets that we haven't responded to yet get a small boost
+  //    - top-level tweets are ranked higher than replies
+  //    - accounts with lots of followers are prioritized because they have a
+  //      larger surface area for exposure
+  //    - a fixed set of "priority users" is prioritized highest for testing
+  //      purposes; this includes me and my test accounts
+  //    - older tweets that we haven't responded to yet get a small boost
   for (let i = 0; i < numMentionCandidates; ++i) {
     const mention = batch.mentions[i]
     let score = (numMentionCandidates - i) / numMentionCandidates

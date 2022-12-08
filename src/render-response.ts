@@ -52,6 +52,7 @@ body {
 
 .content {
   min-width: ${minWidth - 32 * 2}px;
+  max-width: 100%;
   background: #444654;
   color: #eee;
 
@@ -63,6 +64,10 @@ body {
 
   display: flex;
   flex-direction: column;
+}
+
+img {
+  max-width: 100%;
 }
 
 .promptW, .responseW {
@@ -86,6 +91,8 @@ body {
 .hljs {
   padding: 24px;
   border-radius: 8px;
+  max-width: ${maxWidth - 32 * 5 - 64}px;
+  overflow: hidden;
 }
 
 .promptW {

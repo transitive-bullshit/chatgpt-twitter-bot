@@ -22,11 +22,16 @@ import {
   maxTwitterId,
   minTwitterId
 } from './twitter'
-import { getChatGPTResponse, getTweetUrl, getTweetsFromResponse } from './utils'
+import {
+  getChatGPTResponse,
+  getTweetUrl,
+  getTweetsFromResponse,
+  pick
+} from './utils'
 
 /**
- * Fetches new unanswered mentions, resolves them via ChatGPT, and tweets response
- * threads for each one.
+ * Fetches new unanswered mentions, resolves each of them via ChatGPT, and
+ * tweets the responses.
  */
 export async function respondToNewMentions({
   dryRun,
@@ -55,7 +60,7 @@ export async function respondToNewMentions({
 }): Promise<types.ChatGPTSession> {
   console.log('respond to new mentions since', sinceMentionId || 'forever')
 
-  // Resolve mentions to process in this batch
+  // Fetches the mentions to process in this batch
   const batch = await getTweetMentionsBatch({
     forceReply,
     debugTweet,
@@ -68,15 +73,18 @@ export async function respondToNewMentions({
   console.log(
     `processing ${batch.mentions.length} tweet mentions`,
     { numMentionsPostponed: batch.numMentionsPostponed },
-    batch.mentions.map((mention) => ({
-      id: mention.id,
-      text: mention.text,
-      prompt: mention.prompt,
-      promptUrl: mention.promptUrl,
-      isReply: mention.isReply,
-      numFollowers: mention.numFollowers,
-      priorityScore: mention.priorityScore
-    }))
+    batch.mentions.map((mention) =>
+      pick(
+        mention,
+        'id',
+        'text',
+        'prompt',
+        'promptUrl',
+        'isReply',
+        'numFollowers',
+        'priorityScore'
+      )
+    )
   )
   console.log()
 
@@ -147,7 +155,7 @@ export async function respondToNewMentions({
         if (index > 0) {
           // slight slow down between ChatGPT requests
           console.log('pausing for chatgpt...')
-          await delay(3000)
+          await delay(6000)
         }
 
         try {
@@ -209,15 +217,19 @@ export async function respondToNewMentions({
             }
           }
 
-          console.log('processing', {
-            id: mention.id,
-            text: mention.text,
-            prompt: mention.prompt,
-            promptUrl: mention.promptUrl,
-            isReply: mention.isReply,
-            numFollowers: mention.numFollowers,
-            priorityScore: mention.priorityScore
-          })
+          console.log(
+            'processing',
+            pick(
+              mention,
+              'id',
+              'text',
+              'prompt',
+              'promptUrl',
+              'isReply',
+              'numFollowers',
+              'priorityScore'
+            )
+          )
 
           const repliedToTweetRef = mention.referenced_tweets?.find(
             (t) => t.type === 'replied_to'
