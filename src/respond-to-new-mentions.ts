@@ -24,7 +24,12 @@ import {
   maxTwitterId,
   minTwitterId
 } from './twitter'
-import { getChatGPTResponse, getTweetsFromResponse, pick } from './utils'
+import {
+  getChatGPTResponse,
+  getTweetUrl,
+  getTweetsFromResponse,
+  pick
+} from './utils'
 
 /**
  * Fetches new unanswered mentions, resolves them via ChatGPT, and tweets response
@@ -337,7 +342,11 @@ export async function respondToNewMentions({
           promptTweetId,
           promptUserId,
           promptUsername,
-          prompt
+          prompt,
+          promptUrl: getTweetUrl({
+            username: promptUsername,
+            id: promptTweetId
+          })
         }
 
         if (session.isRateLimited) {
@@ -547,19 +556,15 @@ export async function respondToNewMentions({
             await rmfr(imageFilePath)
           }
 
-          if (result.promptTweetId && result.promptUsername) {
-            result.promptUrl = `https://twitter.com/${result.promptUsername}/status/${result.promptTweetId}`
-          }
-
           let responseLastTweetId: string
           if (result.responseTweetIds?.length) {
             responseLastTweetId =
               result.responseTweetIds[result.responseTweetIds.length - 1]
 
-            result.responseUrl = `https://twitter.com/${twitterBotHandle.replace(
-              '@',
-              ''
-            )}/status/${responseLastTweetId}`
+            result.responseUrl = getTweetUrl({
+              username: twitterBotHandle.replace('@', ''),
+              id: responseLastTweetId
+            })
           }
 
           console.log('interaction', result)

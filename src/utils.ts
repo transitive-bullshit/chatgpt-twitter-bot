@@ -82,7 +82,7 @@ export function getTweetsFromResponse(response: string): string[] {
   }
 
   tweetDrafts = tweetDrafts.map((t) => t.trim()).filter(Boolean)
-  console.log(tweetDrafts.length, JSON.stringify(tweetDrafts, null, 2))
+  // console.log(tweetDrafts.length, JSON.stringify(tweetDrafts, null, 2))
 
   const tweets = tweetDrafts.map((draft, index) => {
     if (tweetDrafts.length > 1) {
@@ -176,4 +176,16 @@ export function omit<T extends object>(obj: T, ...keys: string[]) {
   return Object.fromEntries<T>(
     Object.entries(obj).filter(([key]) => !keys.includes(key))
   ) as T
+}
+
+export function getTweetUrl({
+  username,
+  id
+}: {
+  username?: string
+  id?: string
+}): string {
+  if (username && id) {
+    return `https://twitter.com/${username}/status/${id}`
+  }
 }
