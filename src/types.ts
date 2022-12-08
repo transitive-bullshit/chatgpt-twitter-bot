@@ -7,6 +7,7 @@ export { TwitterClient }
 export { TwitterApiv1 as TwitterClientV1 }
 
 export interface Config {
+  accessToken?: string
   refreshToken?: string
   sinceMentionId?: string
 }
@@ -31,6 +32,10 @@ export interface ChatGPTInteraction {
 
   error?: string
   isErrorFinal?: boolean
+
+  priorityScore?: number
+  numFollowers?: number
+  isReply?: boolean
 }
 
 export interface ChatGPTSession {
@@ -69,11 +74,21 @@ export type TweetMention = Partial<Tweet> & {
   isReply?: boolean
 }
 
+export type TweetMentionBatch = {
+  mentions: TweetMention[]
+  users: Record<string, Partial<TwitterUser>>
+  tweets: Record<string, TweetMention>
+  minSinceMentionId: string
+  sinceMentionId: string
+  numMentionsPostponed: number
+}
+
 export type ChatErrorType =
   | 'unknown'
   | 'timeout'
   | 'twitter:auth'
   | 'twitter:duplicate'
+  | 'twitter:forbidden'
   | 'twitter:rate-limit'
 
 export class ChatError extends Error {

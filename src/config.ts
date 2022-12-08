@@ -7,6 +7,7 @@ dotenv.config()
 
 export const twitterBotHandle = '@ChatGPTBot'
 export const twitterBotHandleL = twitterBotHandle.toLowerCase()
+export const twitterBotUserId = '1598922281434103808'
 
 export const tweetIgnoreList = new Set(['1599344387401863174'])
 
@@ -54,7 +55,9 @@ export const languageAllowList = new Set([
   'bug',
   'ces',
   'bum',
-  'hms'
+  'hms',
+  'cat',
+  'glg'
 ])
 
 // These languages are only disallowed if tweetMode is `thread` since the current
@@ -82,5 +85,8 @@ export const redisUrl =
   process.env.REDIS_URL || `redis://${redisUser}:${redisPassword}@${redisHost}`
 
 export default new Conf<types.Config>({
-  defaults: { refreshToken: process.env.TWITTER_OAUTH_REFRESH_TOKEN }
+  defaults: {
+    refreshToken: process.env.TWITTER_OAUTH_REFRESH_TOKEN,
+    accessToken: process.env.TWITTER_OAUTH_ACCESS_TOKEN
+  }
 })

@@ -17,6 +17,11 @@ async function main() {
   const tweetMode: types.TweetMode =
     (process.env.TWEET_MODE as types.TweetMode) || 'image'
   const forceReply = !!process.env.FORCE_REPLY
+  const resolveAllMentions = !!process.env.RESOLVE_ALL_MENTIONS
+  const overrideMaxNumMentionsToProcess = parseInt(
+    process.env.MAX_NUM_MENTIONS_TO_PROCESS,
+    10
+  )
 
   const chatgpt = new ChatGPTAPI({
     sessionToken: process.env.SESSION_TOKEN!,
@@ -29,10 +34,18 @@ async function main() {
   // console.log(res)
   // return
 
-  let sinceMentionId = defaultSinceMentionId || config.get('sinceMentionId')
+  const maxNumMentionsToProcess = isNaN(overrideMaxNumMentionsToProcess)
+    ? 5
+    : overrideMaxNumMentionsToProcess
+
+  let sinceMentionId = resolveAllMentions
+    ? undefined
+    : defaultSinceMentionId || config.get('sinceMentionId')
 
   const refreshToken = defaultRefreshToken || config.get('refreshToken')
-  // const refreshToken = config.get('refreshToken')
+  // const accessToken = undefined // config.get('accessToken')
+  // console.log(accessToken)
+
   const authToken = refreshToken ? { refresh_token: refreshToken } : undefined
   const authClient = new auth.OAuth2User({
     client_id: process.env.TWITTER_CLIENT_ID,
@@ -43,10 +56,16 @@ async function main() {
   })
 
   async function refreshTwitterAuthToken() {
+    // if (debugTweet) {
+    //   console.log('skipping refresh of twitter access token due to DEBUG_TWEET')
+    //   return
+    // }
+
     console.log('refreshing twitter access token')
     try {
       const { token } = await authClient.refreshAccessToken()
       config.set('refreshToken', token.refresh_token)
+      // config.set('accessToken', token.access_token)
       return token
     } catch (err) {
       console.error('unexpected error refreshing twitter access token', err)
@@ -71,10 +90,10 @@ async function main() {
   const { v1: twitterV1 } = twitterApi
 
   const { data: user } = await twitter.users.findMyUser()
-
   if (!user?.id) {
     throw new Error('twitter error unable to fetch current user')
   }
+
   // console.log(user)
   // console.log(await twitterApi.currentUser())
   // return
@@ -92,25 +111,28 @@ async function main() {
         earlyExit,
         forceReply,
         debugTweet,
+        resolveAllMentions,
         chatgpt,
         twitter,
         twitterV1,
-        user,
         sinceMentionId,
+        maxNumMentionsToProcess,
         tweetMode
       })
 
       if (session.sinceMentionId) {
         sinceMentionId = maxTwitterId(sinceMentionId, session.sinceMentionId)
 
-        // Make sure it's in sync in case other processes are writing to the store
-        // as well. Note: this still has a classic potential as a race condition,
-        // but it's not enough to worry about for our use case.
-        const recentSinceMentionId = config.get('sinceMentionId')
-        sinceMentionId = maxTwitterId(sinceMentionId, recentSinceMentionId)
+        if (!defaultSinceMentionId && !resolveAllMentions) {
+          // Make sure it's in sync in case other processes are writing to the store
+          // as well. Note: this still has a classic potential as a race condition,
+          // but it's not enough to worry about for our use case.
+          const recentSinceMentionId = config.get('sinceMentionId')
+          sinceMentionId = maxTwitterId(sinceMentionId, recentSinceMentionId)
 
-        if (sinceMentionId && !dryRun) {
-          config.set('sinceMentionId', sinceMentionId)
+          if (sinceMentionId && !dryRun) {
+            config.set('sinceMentionId', sinceMentionId)
+          }
         }
       }
 
