@@ -486,6 +486,16 @@ export async function respondToNewMentions({
             }
           }
 
+          console.log('processing', {
+            id: mention.id,
+            text: mention.text,
+            prompt: mention.prompt,
+            promptUrl: mention.promptUrl,
+            isReply: mention.isReply,
+            numFollowers: mention.numFollowers,
+            priorityScore: mention.priorityScore
+          })
+
           const repliedToTweetRef = mention.referenced_tweets?.find(
             (t) => t.type === 'replied_to'
           )
@@ -507,16 +517,6 @@ export async function respondToNewMentions({
               result.chatgptParentMessageId = prevInteraction.chatgptMessageId
             }
           }
-
-          console.log('processing', {
-            id: mention.id,
-            text: mention.text,
-            prompt: mention.prompt,
-            promptUrl: mention.promptUrl,
-            isReply: mention.isReply,
-            numFollowers: mention.numFollowers,
-            priorityScore: mention.priorityScore
-          })
 
           const chatgptResponse = await getChatGPTResponse(prompt, {
             chatgpt,
