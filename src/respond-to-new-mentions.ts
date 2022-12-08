@@ -369,7 +369,7 @@ export async function respondToNewMentions({
         if (index > 0) {
           // slight slow down between ChatGPT requests
           console.log('pause for chatgpt...')
-          await delay(7000)
+          await delay(1000)
         }
 
         try {
@@ -462,7 +462,7 @@ export async function respondToNewMentions({
             parentMessageId: result.chatgptParentMessageId
           })
 
-          console.log('chatgptResponse', chatgptResponse)
+          // console.log('chatgptResponse', chatgptResponse)
           const response = chatgptResponse.response
           result.response = response
           result.chatgptConversationId = chatgptResponse.conversationId
@@ -486,13 +486,12 @@ export async function respondToNewMentions({
             // convert the response to tweet-sized chunks
             const tweetTexts = getTweetsFromResponse(response)
 
-            console.log(
-              'prompt',
-              `(${promptTweetId})`,
+            console.log('prompt => thread', {
+              promptTweetId,
               prompt,
-              '=>',
-              JSON.stringify(tweetTexts, null, 2)
-            )
+              response,
+              tweetTexts
+            })
 
             const tweets = await createTwitterThreadForChatGPTResponse({
               mention,
@@ -513,14 +512,12 @@ export async function respondToNewMentions({
               username: promptUser?.username
             })
 
-            console.log(
-              'prompt',
-              `(${promptTweetId})`,
+            console.log('prompt => image', {
+              promptTweetId,
               prompt,
-              '=>',
               imageFilePath,
-              '\n' + response
-            )
+              response
+            })
 
             const mediaId = dryRun
               ? null

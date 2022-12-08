@@ -22,9 +22,10 @@ const injectedHead = `
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/default.min.css">
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github-dark-dimmed.min.css">
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
 `
+
+// not needed client-side
+// <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
 
 const injectedStyle = `
 body {
@@ -164,14 +165,14 @@ export async function renderResponse({
   htmlOutputPath
 }: {
   prompt?: string
-  response
+  response: string
   userImageUrl?: string
   username?: string
   outputPath?: string
   htmlOutputPath?: string
 }): Promise<string> {
   const md = new MarkdownIt({
-    highlight: function (str, lang) {
+    highlight: function (str: string, lang: string) {
       const language = lang || undefined
       try {
         let code = ''
