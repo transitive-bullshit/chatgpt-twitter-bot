@@ -55,16 +55,17 @@ export async function getTweetMentionsBatch({
     twitter
   })
 
-  batch.mentions = batch.mentions
-    .filter((mention) =>
-      isValidMention(mention, {
-        batch,
-        forceReply,
-        updateSinceMentionId
-      })
-    )
-    // Sort the oldest mentions first
-    .reverse()
+  // Filter out invalid mentions
+  batch.mentions = batch.mentions.filter((mention) =>
+    isValidMention(mention, {
+      batch,
+      forceReply,
+      updateSinceMentionId
+    })
+  )
+
+  // Sort the oldest mentions first
+  batch.mentions = batch.mentions.reverse()
 
   // Filter any mentions which we've already replied to
   if (!forceReply) {
@@ -88,7 +89,14 @@ export async function getTweetMentionsBatch({
 
   const numMentionCandidates = batch.mentions.length
 
-  // Score every valid mention candidate according to a heuristic
+  // Score every valid mention candidate according to a heuristic depending on
+  // how important it is to respond to. Some factors taken into consideration:
+  // - top-level tweets are ranked higher than replies
+  // - accounts with lots of followers are prioritized because they have a larger
+  // surface area for exposure
+  // - a fixed set of "priority users" is prioritized highest for testing
+  // purposes; this includes me and my test accounts
+  // - older tweets that we haven't responded to yet get a small boost
   for (let i = 0; i < numMentionCandidates; ++i) {
     const mention = batch.mentions[i]
     let score = (numMentionCandidates - i) / numMentionCandidates
@@ -250,8 +258,8 @@ export async function populateTweetMentionsBatch({
       }
 
       lastSinceMentionId = sinceMentionId
-      console.log('sleeping for twitter rate limit...')
-      await delay(7500)
+      console.log('pausing for twitter...')
+      await delay(6000)
     } while (true)
   }
 }
