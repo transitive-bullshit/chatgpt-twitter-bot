@@ -105,6 +105,9 @@ export type ChatErrorType =
   | 'twitter:auth'
   | 'twitter:forbidden'
   | 'twitter:rate-limit'
+  | 'chatgpt:pool:timeout'
+  | 'chatgpt:pool:rate-limit'
+  | 'chatgpt:pool:unavailable'
 
 export class ChatError extends Error {
   isFinal: boolean = false

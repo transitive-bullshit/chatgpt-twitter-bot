@@ -191,7 +191,7 @@ async function main() {
       }
 
       if (session.isExpiredAuth) {
-        if (++numErrors > 10) {
+        if (++numErrors > 50) {
           throw new Error(
             'ChatGPT auth expired error; unrecoverable. Please update SESSION_TOKEN'
           )

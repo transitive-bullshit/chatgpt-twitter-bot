@@ -3,6 +3,8 @@ import delay from 'delay'
 import QuickLRU from 'quick-lru'
 import random from 'random'
 
+import { ChatError } from './types'
+
 type ChatGPTAPIInstance = InstanceType<typeof ChatGPTAPI>
 
 export type ChatGPTAPIAccount = {
@@ -110,7 +112,7 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
       const responseL = response.toLowerCase()
       if (responseL.includes('too many requests, please slow down')) {
         this._accountsOnCooldown.set(account.id, true, {
-          maxAge: this._accountCooldownMs * 2
+          maxAge: this._accountCooldownMs * 3
         })
         return null
       }
@@ -128,18 +130,37 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
       if (err.name === 'TimeoutError') {
         // ChatGPT timed out
         this._accountsOnCooldown.set(account.id, true)
+
+        const error = new ChatError(err.toString())
+        error.type = 'chatgpt:pool:timeout'
+        error.isFinal = false
+        throw error
       } else if (
         err.toString().toLowerCase() === 'error: chatgptapi error 429'
       ) {
         console.log('\nchatgpt rate limit', account.id, '\n')
         this._accountsOnCooldown.set(account.id, true, {
-          maxAge: this._accountCooldownMs * 4
+          maxAge: this._accountCooldownMs * 5
         })
+
+        const error = new ChatError(err.toString())
+        error.type = 'chatgpt:pool:rate-limit'
+        error.isFinal = false
+        throw error
       } else if (
         err.toString().toLowerCase() === 'error: chatgptapi error 503' ||
         err.toString().toLowerCase() === 'error: chatgptapi error 502'
       ) {
-        this._accountsOnCooldown.set(account.id, true)
+        this._accountsOnCooldown.set(account.id, true, {
+          maxAge: this._accountCooldownMs * 2
+        })
+
+        const error = new ChatError(err.toString())
+        error.type = 'chatgpt:pool:unavailable'
+        error.isFinal = true
+        throw error
+      } else {
+        console.error('UNEXPECTED CHATGPT ERROR', err)
       }
 
       throw err
