@@ -150,8 +150,8 @@ export async function respondToNewMentions({
 
         if (index > 0) {
           // slight slow down between ChatGPT requests
-          // console.log('pausing for chatgpt...')
-          // await delay(4000)
+          console.log('pausing for chatgpt...')
+          await delay(4000)
         }
 
         try {
@@ -417,7 +417,7 @@ export async function respondToNewMentions({
         }
       },
       {
-        concurrency: 3
+        concurrency: 1
       }
     )
   ).filter(Boolean)

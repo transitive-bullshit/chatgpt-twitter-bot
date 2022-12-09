@@ -32,12 +32,12 @@ async function main() {
     10
   )
 
+  const markdown = tweetMode === 'image' ? true : false
   const chatgptAccountsRaw = process.env.CHATGPT_ACCOUNTS
   const chatgptAccounts: ChatGPTAPIAccount[] = chatgptAccountsRaw
     ? JSON.parse(chatgptAccountsRaw)
     : null
 
-  const markdown = tweetMode === 'image' ? true : false
   let chatgpt: ChatGPTAPI
 
   if (chatgptAccounts?.length) {
@@ -213,7 +213,7 @@ async function main() {
             session.isRateLimited ? 'chatgpt' : 'twitter'
           }; sleeping...`
         )
-        await delay(1 * 60 * 1000) // 1m
+        await delay(2 * 60 * 1000) // 1m
 
         if (session.isRateLimitedTwitter) {
           console.log('sleeping longer for twitter rate limit...')
