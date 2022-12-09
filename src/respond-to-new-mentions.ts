@@ -424,12 +424,15 @@ export async function respondToNewMentions({
   }
 
   if (batch.minSinceMentionId) {
-    // follback to the earliest tweet which wasn't processed successfully
-    sinceMentionId = minTwitterId(batch.minSinceMentionId, sinceMentionId)
+    // Rollback to the earliest tweet which wasn't processed successfully
+    batch.sinceMentionId = minTwitterId(
+      batch.minSinceMentionId,
+      batch.sinceMentionId
+    )
   }
 
   session.interactions = results
-  session.sinceMentionId = sinceMentionId
+  session.sinceMentionId = batch.sinceMentionId
 
   return session
 }
