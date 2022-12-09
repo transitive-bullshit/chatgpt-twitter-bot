@@ -18,7 +18,7 @@ export const getTwitterUserMentionsCachePathForUserById = ({
   userId: string
 }) => path.join(cacheDir, `twitter-mentions-${userId}.json`)
 
-export const defaultMaxNumMentionsToProcessPerBatch = 5
+export const defaultMaxNumMentionsToProcessPerBatch = 12
 
 export const tweetIgnoreList = new Set(['1599344387401863174'])
 

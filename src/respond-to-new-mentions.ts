@@ -148,11 +148,11 @@ export async function respondToNewMentions({
           return result
         }
 
-        if (index > 0) {
-          // slight slow down between ChatGPT requests
-          console.log('pausing for chatgpt...')
-          await delay(4000)
-        }
+        // if (index > 0) {
+        //   // slight slow down between ChatGPT requests
+        //   console.log('pausing for chatgpt...')
+        //   await delay(4000)
+        // }
 
         try {
           if (
@@ -201,6 +201,25 @@ export async function respondToNewMentions({
               result.chatgptParentMessageId = prevInteraction.chatgptMessageId
               result.chatgptAccountId = prevInteraction.chatgptAccountId
             }
+          }
+
+          // Double-check that the tweet still exists before asking ChatGPT to
+          // resolve it's response
+          try {
+            const promptTweet = await twitter.tweets.findTweetById(
+              promptTweetId
+            )
+
+            if (!promptTweet?.data) {
+              throw new Error(
+                `Tweet not found (possibly deleted): ${promptTweetId}`
+              )
+            }
+          } catch (err) {
+            const error = new types.ChatError(err.toString())
+            error.type = 'twitter:forbidden'
+            error.isFinal = true
+            throw error
           }
 
           const chatgptResponse = await getChatGPTResponse(prompt, {
@@ -354,7 +373,7 @@ export async function respondToNewMentions({
               }
             }
 
-            await delay(10000)
+            await delay(5000)
           } else if (err instanceof types.ChatError) {
             if (err.type === 'twitter:auth') {
               // Reset twitter auth
@@ -447,7 +466,7 @@ export async function respondToNewMentions({
         }
       },
       {
-        concurrency: 1
+        concurrency: 3
       }
     )
   ).filter(Boolean)

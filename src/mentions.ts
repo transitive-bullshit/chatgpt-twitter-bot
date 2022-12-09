@@ -144,6 +144,8 @@ export async function getTweetMentionsBatch({
   // Sort mentions by relative priority, with the highest priority tweets first
   batch.mentions.sort((a, b) => b.priorityScore - a.priorityScore)
 
+  console.log('SORTED', batch.mentions)
+
   // Loop through all of the mentions we won't be processing in this batch
   for (let i = maxNumMentionsToProcess; i < numMentionsCandidates; ++i) {
     const mention = batch.mentions[i]

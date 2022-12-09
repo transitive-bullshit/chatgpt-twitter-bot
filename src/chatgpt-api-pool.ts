@@ -28,7 +28,8 @@ type ChatGPTAPIAccountInstance = {
  *
  * Whenever you send a message using the pool, a random account will be chosen.
  *
- * TODO: are `conversationId` and `parentMessageId` account-specific?
+ * NOTE: **`conversationId` and `parentMessageId` are account-specific**, so
+ * conversations cannot be transferred between accounts.
  */
 export class ChatGPTAPIPool extends ChatGPTAPI {
   protected _accounts: Array<ChatGPTAPIAccountInstance>
