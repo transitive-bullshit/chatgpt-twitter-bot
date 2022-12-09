@@ -5,12 +5,17 @@ import { TwitterApi } from 'twitter-api-v2'
 
 import * as types from './types'
 import { ChatGPTAPIAccount, ChatGPTAPIPool } from './chatgpt-api-pool'
-import config from './config'
+import config, { twitterBotUserId } from './config'
 import { respondToNewMentions } from './respond-to-new-mentions'
 import { maxTwitterId } from './twitter'
+import {
+  loadUserMentionCacheFromDiskByUserId,
+  saveAllUserMentionCachesToDisk
+} from './twitter-mentions'
 
 async function main() {
   const dryRun = !!process.env.DRY_RUN
+  const noCache = !!process.env.NO_CACHE
   const earlyExit = !!process.env.EARLY_EXIT
   const debugTweet = process.env.DEBUG_TWEET
   const defaultSinceMentionId = process.env.SINCE_ID
@@ -41,6 +46,8 @@ async function main() {
       markdown: tweetMode === 'image' ? true : false
     })
   }
+
+  await loadUserMentionCacheFromDiskByUserId({ userId: twitterBotUserId })
 
   // for testing chatgpt
   // await chatgpt.ensureAuth()
@@ -122,6 +129,7 @@ async function main() {
       console.log()
       const session = await respondToNewMentions({
         dryRun,
+        noCache,
         earlyExit,
         forceReply,
         debugTweet,
@@ -160,6 +168,10 @@ async function main() {
       )
       if (session.interactions?.length) {
         interactions = interactions.concat(session.interactions)
+      }
+
+      if (!noCache) {
+        await saveAllUserMentionCachesToDisk()
       }
 
       if (debugTweet) {

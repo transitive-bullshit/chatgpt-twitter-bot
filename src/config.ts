@@ -1,3 +1,5 @@
+import path from 'node:path'
+
 import Conf from 'conf'
 import dotenv from 'dotenv-safe'
 
@@ -8,6 +10,13 @@ dotenv.config()
 export const twitterBotHandle = '@ChatGPTBot'
 export const twitterBotHandleL = twitterBotHandle.toLowerCase()
 export const twitterBotUserId = '1598922281434103808'
+
+export const cacheDir = 'out'
+export const getTwitterUserMentionsCachePathForUserById = ({
+  userId
+}: {
+  userId: string
+}) => path.join(cacheDir, `twitter-mentions-${userId}.json`)
 
 export const tweetIgnoreList = new Set(['1599344387401863174'])
 

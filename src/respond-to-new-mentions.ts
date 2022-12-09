@@ -28,6 +28,7 @@ import {
  */
 export async function respondToNewMentions({
   dryRun,
+  noCache,
   earlyExit,
   forceReply,
   debugTweet,
@@ -40,6 +41,7 @@ export async function respondToNewMentions({
   tweetMode = 'image'
 }: {
   dryRun: boolean
+  noCache: boolean
   earlyExit: boolean
   forceReply?: boolean
   debugTweet?: string
@@ -55,6 +57,7 @@ export async function respondToNewMentions({
 
   // Fetch the mentions to process in this batch
   const batch = await getTweetMentionsBatch({
+    noCache,
     forceReply,
     debugTweet,
     resolveAllMentions,

@@ -10,7 +10,8 @@ import {
   twitterBotUserId
 } from './config'
 import { keyv } from './keyv'
-import { getTwitterUserIdMentions, maxTwitterId, minTwitterId } from './twitter'
+import { maxTwitterId, minTwitterId } from './twitter'
+import { getTwitterUserIdMentions } from './twitter-mentions'
 import { getTweetUrl, pick } from './utils'
 
 const rUrl = urlRegex()
@@ -20,6 +21,7 @@ const rUrl = urlRegex()
  * priority heuristic.
  */
 export async function getTweetMentionsBatch({
+  noCache,
   forceReply,
   debugTweet,
   resolveAllMentions,
@@ -27,6 +29,7 @@ export async function getTweetMentionsBatch({
   sinceMentionId,
   maxNumMentionsToProcess = 5
 }: {
+  noCache?: boolean
   forceReply?: boolean
   debugTweet?: string
   resolveAllMentions?: boolean
@@ -49,6 +52,7 @@ export async function getTweetMentionsBatch({
 
   await populateTweetMentionsBatch({
     batch,
+    noCache,
     debugTweet,
     resolveAllMentions,
     twitter
@@ -171,11 +175,13 @@ export async function getTweetMentionsBatch({
 
 export async function populateTweetMentionsBatch({
   batch,
+  noCache,
   debugTweet,
   resolveAllMentions,
   twitter
 }: {
   batch: types.TweetMentionBatch
+  noCache?: boolean
   debugTweet?: string
   resolveAllMentions?: boolean
   twitter: types.TwitterClient
@@ -224,6 +230,7 @@ export async function populateTweetMentionsBatch({
       },
       {
         twitter,
+        noCache,
         resolveAllMentions
       }
     )

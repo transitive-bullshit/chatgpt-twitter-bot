@@ -1,8 +1,11 @@
 import { Client, auth } from 'twitter-api-sdk'
 
-import config from './config'
+import config, { twitterBotUserId } from './config'
+import { loadUserMentionCacheFromDiskByUserId } from './twitter-mentions'
 
 async function main() {
+  await loadUserMentionCacheFromDiskByUserId({ userId: twitterBotUserId })
+
   // const refreshToken = process.env.TWITTER_OAUTH_REFRESH_TOKEN || config.get('refreshToken')
   const refreshToken = config.get('refreshToken')
   const authToken = refreshToken ? { refresh_token: refreshToken } : undefined
