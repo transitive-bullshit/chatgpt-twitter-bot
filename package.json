@@ -50,6 +50,7 @@
     "quick-lru": "^6.1.1",
     "random": "^4.1.0",
     "rmfr": "^2.0.0",
+    "sorted-btree": "^1.8.1",
     "tempy": "^3.0.0",
     "twitter-api-sdk": "^1.2.1",
     "twitter-api-v2": "^1.12.9",

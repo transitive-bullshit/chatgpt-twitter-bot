@@ -2,26 +2,72 @@ import delay from 'delay'
 // import fs from 'fs/promises'
 import pMap from 'p-map'
 import pThrottle from 'p-throttle'
+import BTree from 'sorted-btree'
 
 import * as types from './types'
 
 const userIdMentionsCache: types.TwitterUserIdMentionsCache = {}
 
-// class TwitterUserMentionsCache {
-//   userId: string
+class TwitterUserMentionsCache {
+  userId: string
 
-//   mentions: types.TweetMention[]
-//   users: Record<string, Partial<types.TwitterUser>>
-//   tweets: Record<string, types.TweetMention>
+  mentions: BTree<string, types.TweetMention> = new BTree(
+    undefined,
+    (a: string, b: string) => a.localeCompare(b)
+  )
+  users: Record<string, Partial<types.TwitterUser>> = {}
+  tweets: Record<string, types.TweetMention> = {}
 
-//   mentionsIndexById: Record<string, number>
+  get minTweetId(): string {
+    return this.mentions.minKey()
+  }
 
-//   minTweetId: string
-//   maxTweetId: string
+  get maxTweetId(): string {
+    return this.mentions.maxKey()
+  }
 
-//   addResult(result: types.TweetMentionResult) {
-//   }
-// }
+  addResult(result: types.TweetMentionResult) {
+    this.users = {
+      ...this.users,
+      ...result.users
+    }
+
+    this.tweets = {
+      ...this.tweets,
+      ...result.tweets
+    }
+
+    this.mentions.setPairs(
+      result.mentions.map((mention) => [mention.id, mention])
+    )
+  }
+
+  getUserMentions(sinceId: string) {
+    const result: types.TweetMentionResult = {
+      mentions: [],
+      users: {},
+      tweets: {},
+      sinceMentionId: sinceId
+    }
+
+    const minPair = this.mentions.getPairOrNextHigher(sinceId)
+    if (minPair) {
+      const minKey = minPair[0]
+      const maxKey = this.maxTweetId
+
+      result.mentions = this.mentions
+        .getRange(minKey, maxKey, true)
+        .map((pair) => pair[1])
+
+      result.sinceMentionId = maxKey
+    }
+
+    result.users = { ...this.users }
+    result.tweets = { ...this.tweets }
+
+    return result
+  }
+}
 
 // enforce twitter rate limit of 200 tweets per 15 minutes
 const throttle1 = pThrottle({
@@ -243,82 +289,71 @@ export async function getTwitterUserIdMentions(
     userIdMentionsCache[userId] = {}
   }
 
+  if (!noCache) {
+    const cachedResult = userIdMentionsCache[userId][originalSinceMentionId]
+    if (cachedResult) {
+      result.mentions = result.mentions.concat(cachedResult.mentions)
+      result.users = {
+        ...cachedResult.users,
+        ...result.users
+      }
+      result.tweets = {
+        ...cachedResult.tweets,
+        ...result.tweets
+      }
+      result.sinceMentionId = maxTwitterId(
+        result.sinceMentionId,
+        cachedResult.sinceMentionId
+      )
+
+      console.log('twitter.tweets.userIdMentions cache hit', {
+        sinceMentionId: originalSinceMentionId,
+        numMentions: result.mentions.length
+      })
+    }
+  }
   let lastSinceMentionId = result.sinceMentionId
 
   do {
+    console.log('twitter.tweets.usersIdMentions', {
+      sinceMentionId: result.sinceMentionId
+    })
+    const mentionsQuery = twitter.tweets.usersIdMentions(userId, {
+      ...opts,
+      since_id: result.sinceMentionId
+    })
+
     let numMentionsInQuery = 0
     let numPagesInQuery = 0
-    let isCachedResult = false
+    for await (const page of mentionsQuery) {
+      numPagesInQuery++
 
-    if (!noCache) {
-      const cachedResult = userIdMentionsCache[userId][originalSinceMentionId]
-      if (cachedResult) {
-        numMentionsInQuery = cachedResult.mentions.length
-        result.mentions = result.mentions.concat(cachedResult.mentions)
-        result.users = {
-          ...cachedResult.users,
-          ...result.users
+      if (page.data?.length) {
+        numMentionsInQuery += page.data?.length
+        result.mentions = result.mentions.concat(page.data)
+
+        for (const mention of page.data) {
+          result.sinceMentionId = maxTwitterId(
+            result.sinceMentionId,
+            mention.id
+          )
         }
-        result.tweets = {
-          ...cachedResult.tweets,
-          ...result.tweets
+      }
+
+      if (page.includes?.users?.length) {
+        for (const user of page.includes.users) {
+          result.users[user.id] = user
         }
-        result.sinceMentionId = maxTwitterId(
-          result.sinceMentionId,
-          cachedResult.sinceMentionId
-        )
+      }
 
-        console.log('twitter.tweets.userIdMentions cache hit', {
-          sinceMentionId: originalSinceMentionId,
-          numMentions: result.mentions.length
-        })
-
-        isCachedResult = true
+      if (page.includes?.tweets?.length) {
+        for (const tweet of page.includes.tweets) {
+          result.tweets[tweet.id] = tweet
+        }
       }
     }
 
-    if (!isCachedResult) {
-      console.log('twitter.tweets.usersIdMentions', {
-        sinceMentionId: result.sinceMentionId
-      })
-      const mentionsQuery = twitter.tweets.usersIdMentions(userId, {
-        ...opts,
-        since_id: result.sinceMentionId
-      })
-
-      for await (const page of mentionsQuery) {
-        numPagesInQuery++
-
-        if (page.data?.length) {
-          numMentionsInQuery += page.data?.length
-          result.mentions = result.mentions.concat(page.data)
-
-          for (const mention of page.data) {
-            result.sinceMentionId = maxTwitterId(
-              result.sinceMentionId,
-              mention.id
-            )
-          }
-        }
-
-        if (page.includes?.users?.length) {
-          for (const user of page.includes.users) {
-            result.users[user.id] = user
-          }
-        }
-
-        if (page.includes?.tweets?.length) {
-          for (const tweet of page.includes.tweets) {
-            result.tweets[tweet.id] = tweet
-          }
-        }
-      }
-
-      console.log({ numMentionsInQuery, numPagesInQuery })
-      if (!numMentionsInQuery || !resolveAllMentions) {
-      }
-    }
-
+    console.log({ numMentionsInQuery, numPagesInQuery })
     if (
       !numMentionsInQuery ||
       !resolveAllMentions ||

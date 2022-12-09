@@ -99,11 +99,6 @@ export type TweetMentionResult = {
   sinceMentionId: string
 }
 
-export type TwitterUserIdMentionsCache = Record<
-  string,
-  Record<string, TweetMentionResult>
->
-
 export type ChatErrorType =
   | 'unknown'
   | 'timeout'
