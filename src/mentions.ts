@@ -55,6 +55,8 @@ export async function getTweetMentionsBatch({
     twitter
   })
 
+  const numMentionsFetched = batch.mentions.length
+
   // Filter out invalid mentions
   batch.mentions = batch.mentions.filter((mention) =>
     isValidMention(mention, {
@@ -63,6 +65,8 @@ export async function getTweetMentionsBatch({
       updateSinceMentionId
     })
   )
+
+  const numMentionsValid = batch.mentions.length
 
   // Sort the oldest mentions first
   batch.mentions = batch.mentions.reverse()
@@ -87,7 +91,7 @@ export async function getTweetMentionsBatch({
     ).filter(Boolean)
   }
 
-  const numMentionCandidates = batch.mentions.length
+  const numMentionsCandidates = batch.mentions.length
 
   // Score every valid mention candidate according to a heuristic depending on
   // how important it is to respond to. Some factors taken into consideration:
@@ -97,9 +101,9 @@ export async function getTweetMentionsBatch({
   //    - a fixed set of "priority users" is prioritized highest for testing
   //      purposes; this includes me and my test accounts
   //    - older tweets that we haven't responded to yet get a small boost
-  for (let i = 0; i < numMentionCandidates; ++i) {
+  for (let i = 0; i < numMentionsCandidates; ++i) {
     const mention = batch.mentions[i]
-    let score = (numMentionCandidates - i) / numMentionCandidates
+    let score = (numMentionsCandidates - i) / numMentionsCandidates
 
     const repliedToTweetRef = mention.referenced_tweets?.find(
       (t) => t.type === 'replied_to'
@@ -136,7 +140,7 @@ export async function getTweetMentionsBatch({
   batch.mentions.sort((a, b) => b.priorityScore - a.priorityScore)
 
   // Loop through all of the mentions we won't be processing in this batch
-  for (let i = maxNumMentionsToProcess; i < numMentionCandidates; ++i) {
+  for (let i = maxNumMentionsToProcess; i < numMentionsCandidates; ++i) {
     const mention = batch.mentions[i]
 
     // make sure we don't skip past these mentions on the next batch
@@ -147,11 +151,21 @@ export async function getTweetMentionsBatch({
 
   batch.numMentionsPostponed = Math.max(
     0,
-    numMentionCandidates - maxNumMentionsToProcess
+    numMentionsCandidates - maxNumMentionsToProcess
   )
 
   // Limit the number of mentions to process in this batch
   batch.mentions = batch.mentions.slice(0, maxNumMentionsToProcess)
+
+  const numMentionsInBatch = batch.mentions.length
+
+  console.log(`fetched mentions batch`, {
+    numMentionsFetched,
+    numMentionsValid,
+    numMentionsCandidates,
+    numMentionsInBatch,
+    numMentionsPostponed: batch.numMentionsPostponed
+  })
 
   return batch
 }
