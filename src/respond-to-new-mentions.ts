@@ -1,18 +1,11 @@
 import { ChatGPTAPI } from 'chatgpt'
 import delay from 'delay'
-import { franc } from 'franc'
-import { iso6393 } from 'iso-639-3'
 import pMap from 'p-map'
 import rmfr from 'rmfr'
 
 import * as types from './types'
-import {
-  enableRedis,
-  languageAllowList,
-  languageDisallowList,
-  twitterBotHandle,
-  twitterBotUserId
-} from './config'
+import { enableRedis, twitterBotHandle, twitterBotUserId } from './config'
+import { handlePromptLanguage } from './handle-language'
 import { keyv } from './keyv'
 import { getTweetMentionsBatch } from './mentions'
 import { renderResponse } from './render-response'
@@ -35,6 +28,7 @@ import {
  */
 export async function respondToNewMentions({
   dryRun,
+  noCache,
   earlyExit,
   forceReply,
   debugTweet,
@@ -47,6 +41,7 @@ export async function respondToNewMentions({
   tweetMode = 'image'
 }: {
   dryRun: boolean
+  noCache: boolean
   earlyExit: boolean
   forceReply?: boolean
   debugTweet?: string
@@ -60,8 +55,9 @@ export async function respondToNewMentions({
 }): Promise<types.ChatGPTSession> {
   console.log('respond to new mentions since', sinceMentionId || 'forever')
 
-  // Fetches the mentions to process in this batch
+  // Fetch the mentions to process in this batch
   const batch = await getTweetMentionsBatch({
+    noCache,
     forceReply,
     debugTweet,
     resolveAllMentions,
@@ -107,7 +103,7 @@ export async function respondToNewMentions({
   const results = (
     await pMap(
       batch.mentions,
-      async (mention, index): Promise<types.ChatGPTInteraction> => {
+      async (mention): Promise<types.ChatGPTInteraction> => {
         const { prompt, id: promptTweetId, author_id: promptUserId } = mention
         const promptUser = batch.users[mention.author_id]
         const promptUsername = promptUser?.username
@@ -152,69 +148,44 @@ export async function respondToNewMentions({
           return result
         }
 
-        if (index > 0) {
-          // slight slow down between ChatGPT requests
-          console.log('pausing for chatgpt...')
-          await delay(6000)
-        }
+        // if (index > 0) {
+        //   // slight slow down between ChatGPT requests
+        //   console.log('pausing for chatgpt...')
+        //   await delay(4000)
+        // }
 
         try {
-          // TODO: the `franc` module we're using for language detection doesn't
-          // seem very accurate at inferrring english. It will often pick some
-          // european dialect instead.
-          const lang = franc(prompt, { minLength: 5 })
+          if (
+            !(await handlePromptLanguage({
+              result,
+              dryRun,
+              twitter,
+              tweetMode
+            }))
+          ) {
+            return result
+          }
 
-          if (!languageAllowList.has(lang)) {
-            const entry = iso6393.find((i) => i.iso6393 === lang)
-            const langName = entry?.name || lang || 'unknown'
+          // Double-check that the tweet still exists before asking ChatGPT to
+          // resolve it's response
+          try {
+            const promptTweet = await twitter.tweets.findTweetById(
+              promptTweetId
+            )
 
-            // Check for languages that we know will cause problems for our code
-            // and degrace gracefully with an error message.
-            if (tweetMode === 'thread' && languageDisallowList.has(lang)) {
-              console.error()
-              console.error('error: unsupported language detected in prompt', {
-                lang,
-                langName,
-                prompt,
-                promptTweetId
-              })
-              console.error()
-
-              const tweets = await createTwitterThreadForChatGPTResponse({
-                mention,
-                twitter,
-                tweetTexts: [
-                  `${
-                    promptUsername
-                      ? `Hey @${promptUsername}, we're sorry but `
-                      : "We're sorry but "
-                  }${
-                    langName === 'unknown' ? 'your prompt' : langName
-                  } is currently not supported by this chatbot. We apologize for the inconvenience and will be adding support for more languages soon.\n\nRef: ${promptTweetId}`
-                ],
-                dryRun
-              })
-
-              const responseTweetIds = tweets.map((tweet) => tweet.id)
-              return {
-                ...result,
-                error: `Unsupported language "${langName}"`,
-                isErrorFinal: true,
-                responseTweetIds
-              }
-            } else if (!languageDisallowList.has(lang)) {
-              console.warn()
-              console.warn(
-                'warning: unrecognized language detected in prompt',
-                {
-                  lang,
-                  langName,
-                  prompt,
-                  promptTweetId
-                }
+            if (!promptTweet?.data) {
+              const error = new types.ChatError(
+                `Tweet not found (possibly deleted): ${promptTweetId}`
               )
-              console.warn()
+              error.type = 'twitter:forbidden'
+              error.isFinal = true
+              throw error
             }
+          } catch (err) {
+            const error = new types.ChatError(err.toString())
+            error.type = 'twitter:forbidden'
+            error.isFinal = true
+            throw error
           }
 
           console.log(
@@ -243,13 +214,14 @@ export async function respondToNewMentions({
               repliedToTweet.id
             )
 
-            if (prevInteraction) {
+            if (prevInteraction && !prevInteraction.error) {
               console.log('prevInteraction', prevInteraction)
 
               // prevInteraction.role should equal 'assistant'
               result.chatgptConversationId =
                 prevInteraction.chatgptConversationId
               result.chatgptParentMessageId = prevInteraction.chatgptMessageId
+              result.chatgptAccountId = prevInteraction.chatgptAccountId
             }
           }
 
@@ -257,7 +229,8 @@ export async function respondToNewMentions({
             chatgpt,
             stripMentions: tweetMode === 'image' ? false : true,
             conversationId: result.chatgptConversationId,
-            parentMessageId: result.chatgptParentMessageId
+            parentMessageId: result.chatgptParentMessageId,
+            chatgptAccountId: result.chatgptAccountId
           })
 
           // console.log('chatgptResponse', chatgptResponse)
@@ -265,6 +238,7 @@ export async function respondToNewMentions({
           result.response = response
           result.chatgptConversationId = chatgptResponse.conversationId
           result.chatgptMessageId = chatgptResponse.messageId
+          result.chatgptAccountId = chatgptResponse.accountId
 
           const responseL = response.toLowerCase()
           if (responseL.includes('too many requests, please slow down')) {
@@ -373,43 +347,92 @@ export async function respondToNewMentions({
           let isFinal = !!err.isFinal
 
           if (err.name === 'TimeoutError') {
-            // TODO: for now, we won't worry about trying to deal with retrying timeouts
-            isFinal = true
+            if (!mention.numFollowers || mention.numFollowers < 4000) {
+              // TODO: for now, we won't worry about trying to deal with retrying timeouts
+              isFinal = true
 
-            // reset chatgpt auth
-            // session.isExpiredAuth = true
-
-            try {
-              if (!dryRun) {
-                const tweet = await createTweet(
-                  {
-                    text: `Uh-oh ChatGPT timed out responding to your prompt. Sorry 😓\n\nRef: ${promptTweetId}`,
-                    reply: {
-                      in_reply_to_tweet_id: promptTweetId
+              try {
+                if (!dryRun) {
+                  const tweet = await createTweet(
+                    {
+                      text: `Uh-oh ChatGPT timed out responding to your prompt. Sorry 😓\n\nRef: ${promptTweetId}`,
+                      reply: {
+                        in_reply_to_tweet_id: promptTweetId
+                      }
+                    },
+                    {
+                      twitter,
+                      dryRun
                     }
-                  },
-                  {
-                    twitter,
-                    dryRun
-                  }
-                )
+                  )
 
-                result.responseTweetIds = [tweet?.id].filter(Boolean)
+                  result.responseTweetIds = [tweet?.id].filter(Boolean)
+                }
+              } catch (err2) {
+                console.warn(
+                  `warning: twitter error responding to tweet after ChatGPT timeout`,
+                  err2.toString()
+                )
               }
-            } catch (err2) {
-              console.warn(
-                `warning: twitter error responding to tweet after ChatGPT timeout`,
-                err2.toString()
-              )
             }
 
-            await delay(10000)
+            await delay(5000)
           } else if (err instanceof types.ChatError) {
             if (err.type === 'twitter:auth') {
               // Reset twitter auth
               session.isExpiredAuthTwitter = true
             } else if (err.type === 'twitter:rate-limit') {
               session.isRateLimitedTwitter = true
+            } else if (err.type === 'chatgpt:pool:timeout') {
+              // Ignore because that account will be taken out of the pool and
+              // put on cooldown
+              if (err.accountId) {
+                result.chatgptAccountId = err.accountId
+              }
+            } else if (err.type === 'chatgpt:pool:unavailable') {
+              // Ignore because that account will be taken out of the pool and
+              // put on cooldown
+              if (err.accountId) {
+                result.chatgptAccountId = err.accountId
+              }
+            } else if (err.type === 'chatgpt:pool:rate-limit') {
+              // That account will be taken out of the pool and put on cooldown, but
+              // for a hard 429, let's still rate limit ourselves to avoid IP bans.
+              session.isRateLimited = true
+
+              if (err.accountId) {
+                result.chatgptAccountId = err.accountId
+              }
+            } else if (err.type === 'chatgpt:pool:account-not-found') {
+              console.error(err.toString)
+
+              if (err.accountId) {
+                result.chatgptAccountId = err.accountId
+              }
+
+              try {
+                if (!dryRun) {
+                  const tweet = await createTweet(
+                    {
+                      text: `Uh-oh ChatGPTBot ran into an unexpected error responding to your conversation. Sorry 😓\n\nRef: ${promptTweetId}`,
+                      reply: {
+                        in_reply_to_tweet_id: promptTweetId
+                      }
+                    },
+                    {
+                      twitter,
+                      dryRun
+                    }
+                  )
+
+                  result.responseTweetIds = [tweet?.id].filter(Boolean)
+                }
+              } catch (err2) {
+                console.warn(
+                  `warning: twitter error responding to tweet after ChatGPT account not found error`,
+                  err2.toString()
+                )
+              }
             }
           } else if (
             err.toString().toLowerCase() === 'error: chatgptapi error 429'
@@ -420,45 +443,51 @@ export async function respondToNewMentions({
             err.toString().toLowerCase() === 'error: chatgptapi error 503' ||
             err.toString().toLowerCase() === 'error: chatgptapi error 502'
           ) {
-            // TODO: for now, we won't worry about trying to deal with retrying these requests
-            isFinal = true
+            if (!mention.numFollowers || mention.numFollowers < 4000) {
+              // TODO: for now, we won't worry about trying to deal with retrying these requests
+              isFinal = true
 
-            try {
-              if (!dryRun) {
-                const tweet = await createTweet(
-                  {
-                    text: `Uh-oh ChatGPT's servers are overwhelmed and responded with: "${err.toString()}". Sorry 😓\n\nRef: ${promptTweetId}`,
-                    reply: {
-                      in_reply_to_tweet_id: promptTweetId
+              try {
+                if (!dryRun) {
+                  const tweet = await createTweet(
+                    {
+                      text: `Uh-oh ChatGPT's servers are overwhelmed and responded with: "${err.toString()}". Sorry 😓\n\nRef: ${promptTweetId}`,
+                      reply: {
+                        in_reply_to_tweet_id: promptTweetId
+                      }
+                    },
+                    {
+                      twitter,
+                      dryRun
                     }
-                  },
-                  {
-                    twitter,
-                    dryRun
-                  }
-                )
+                  )
 
-                result.responseTweetIds = [tweet?.id].filter(Boolean)
+                  result.responseTweetIds = [tweet?.id].filter(Boolean)
+                }
+              } catch (err2) {
+                // ignore follow-up errors
+                console.warn(
+                  `warning: twitter error responding to tweet after ChatGPT error`,
+                  err.toString,
+                  err2.toString()
+                )
               }
-            } catch (err2) {
-              // ignore follow-up errors
-              console.warn(
-                `warning: twitter error responding to tweet after ChatGPT error`,
-                err.toString,
-                err2.toString()
-              )
             }
           }
 
-          return {
-            ...result,
-            error: err.toString(),
-            isErrorFinal: !!isFinal
+          result.error = err.toString()
+          result.isErrorFinal = !!isFinal
+
+          if (result.isErrorFinal && enableRedis && !dryRun) {
+            // Store final errors so we don't try to re-process them
+            await keyv.set(promptTweetId, { ...result, role: 'user' })
           }
+
+          return result
         }
       },
       {
-        concurrency: 1
+        concurrency: 3
       }
     )
   ).filter(Boolean)
@@ -478,12 +507,15 @@ export async function respondToNewMentions({
   }
 
   if (batch.minSinceMentionId) {
-    // follback to the earliest tweet which wasn't processed successfully
-    sinceMentionId = minTwitterId(batch.minSinceMentionId, sinceMentionId)
+    // Rollback to the earliest tweet which wasn't processed successfully
+    batch.sinceMentionId = minTwitterId(
+      batch.minSinceMentionId,
+      batch.sinceMentionId
+    )
   }
 
   session.interactions = results
-  session.sinceMentionId = sinceMentionId
+  session.sinceMentionId = batch.sinceMentionId
 
   return session
 }

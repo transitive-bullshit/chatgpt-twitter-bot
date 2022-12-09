@@ -29,6 +29,7 @@ export interface ChatGPTInteraction {
   chatgptConversationId?: string
   chatgptParentMessageId?: string
   chatgptMessageId?: string
+  chatgptAccountId?: string
 
   error?: string
   isErrorFinal?: boolean
@@ -48,9 +49,10 @@ export interface ChatGPTSession {
 }
 
 export interface ChatGPTResponse {
+  response: string
   conversationId?: string
   messageId?: string
-  response: string
+  accountId?: string
 }
 
 type Unpacked<T> = T extends (infer U)[] ? U : T
@@ -64,6 +66,15 @@ export type TwitterUser = AsyncReturnType<
 export type CreatedTweet = AsyncReturnType<
   TwitterClient['tweets']['createTweet']
 >['data']
+
+export type TweetsQueryOptions = Pick<
+  Parameters<TwitterClient['tweets']['findTweetsById']>[0],
+  'expansions' | 'tweet.fields' | 'user.fields'
+>
+
+export type TwitterUserIdMentionsQueryOptions = Parameters<
+  TwitterClient['tweets']['usersIdMentions']
+>[1]
 
 export type TweetMention = Partial<Tweet> & {
   prompt?: string
@@ -83,17 +94,28 @@ export type TweetMentionBatch = {
   numMentionsPostponed: number
 }
 
+export type TweetMentionResult = {
+  mentions: TweetMention[]
+  users: Record<string, Partial<TwitterUser>>
+  tweets: Record<string, TweetMention>
+  sinceMentionId: string
+}
+
 export type ChatErrorType =
   | 'unknown'
   | 'timeout'
   | 'twitter:auth'
-  | 'twitter:duplicate'
   | 'twitter:forbidden'
   | 'twitter:rate-limit'
+  | 'chatgpt:pool:timeout'
+  | 'chatgpt:pool:rate-limit'
+  | 'chatgpt:pool:unavailable'
+  | 'chatgpt:pool:account-not-found'
 
 export class ChatError extends Error {
   isFinal: boolean = false
   type?: ChatErrorType = 'unknown'
+  accountId?: string
 }
 
 export type TweetMode = 'image' | 'thread'

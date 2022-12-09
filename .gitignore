@@ -46,3 +46,6 @@ next-env.d.ts
 .env.production.local
 
 test.html
+
+/accounts.js
+/out/

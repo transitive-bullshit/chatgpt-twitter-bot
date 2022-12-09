@@ -3,6 +3,7 @@ import winkNLPModel from 'wink-eng-lite-web-model'
 import winkNLP from 'wink-nlp'
 
 import * as types from './types'
+import { ChatGPTAPIPool } from './chatgpt-api-pool'
 
 const nlp = winkNLP(winkNLPModel)
 
@@ -15,18 +16,21 @@ export async function getChatGPTResponse(
     chatgpt,
     conversationId,
     parentMessageId,
+    chatgptAccountId,
     stripMentions = false,
     timeoutMs = 2 * 60 * 1000 // 2 minutes
   }: {
     chatgpt: ChatGPTAPI
     conversationId?: string
     parentMessageId?: string
+    chatgptAccountId?: string
     stripMentions?: boolean
     timeoutMs?: number
   }
 ): Promise<types.ChatGPTResponse> {
   let response: string
   let messageId: string
+  let accountId: string
 
   const onConversationResponse = (res: ConversationResponseEvent) => {
     if (res.conversation_id) {
@@ -38,25 +42,57 @@ export async function getChatGPTResponse(
     }
   }
 
-  try {
-    console.log('chatgpt.sendMessage', prompt, {
-      conversationId,
-      parentMessageId
-    })
-    response = await chatgpt.sendMessage(prompt, {
-      timeoutMs: timeoutMs,
-      conversationId,
-      parentMessageId,
-      onConversationResponse
-    })
-  } catch (err: any) {
-    console.error('ChatGPT error', {
-      prompt,
-      error: err
-    })
+  do {
+    const origConversationId = conversationId
 
-    throw new Error(`ChatGPT error: ${err.toString()}`)
-  }
+    try {
+      console.log('chatgpt.sendMessage', prompt, {
+        conversationId,
+        parentMessageId
+      })
+
+      if (chatgpt instanceof ChatGPTAPIPool) {
+        const res = await chatgpt.sendMessageToAccount(prompt, {
+          timeoutMs: timeoutMs,
+          conversationId,
+          parentMessageId,
+          accountId: chatgptAccountId,
+          onConversationResponse
+        })
+
+        accountId = res.accountId
+        response = res.response
+      } else {
+        response = await chatgpt.sendMessage(prompt, {
+          timeoutMs: timeoutMs,
+          conversationId,
+          parentMessageId,
+          onConversationResponse
+        })
+      }
+
+      break
+    } catch (err: any) {
+      console.error('ChatGPT error', {
+        prompt,
+        error: err
+      })
+
+      if (
+        err.toString().toLowerCase() === 'error: chatgptapi error 404' &&
+        origConversationId
+      ) {
+        // This can happen if we're accidentally trying to use a different
+        // OpenAI account to respond to an existing conversation.. so we punt
+        // and erase the conversation context and retry
+        conversationId = undefined
+        parentMessageId = undefined
+        continue
+      }
+
+      throw err
+    }
+  } while (true)
 
   response = response?.trim()
   if (stripMentions) {
@@ -70,7 +106,8 @@ export async function getChatGPTResponse(
   return {
     response,
     messageId,
-    conversationId
+    conversationId,
+    accountId
   }
 }
 

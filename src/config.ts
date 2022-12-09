@@ -1,3 +1,5 @@
+import path from 'node:path'
+
 import Conf from 'conf'
 import dotenv from 'dotenv-safe'
 
@@ -9,13 +11,23 @@ export const twitterBotHandle = '@ChatGPTBot'
 export const twitterBotHandleL = twitterBotHandle.toLowerCase()
 export const twitterBotUserId = '1598922281434103808'
 
+export const cacheDir = 'out'
+export const getTwitterUserMentionsCachePathForUserById = ({
+  userId
+}: {
+  userId: string
+}) => path.join(cacheDir, `twitter-mentions-${userId}.json`)
+
+export const defaultMaxNumMentionsToProcessPerBatch = 12
+
 export const tweetIgnoreList = new Set(['1599344387401863174'])
 
 // Used by the author(s) for faster testing and feedback
 export const priorityUsersList = new Set([
   '327034465', // transitive_bs
   '1235525929335689217', // LofiGrind (my test acct)
-  '1598922281434103808' // ChatGPTBot
+  '1598922281434103808', // ChatGPTBot,
+  '1019099485153030144' // Yaviendil
 ])
 
 export const languageAllowList = new Set([

@@ -4,12 +4,21 @@ import { Client as TwitterClient, auth } from 'twitter-api-sdk'
 import { TwitterApi } from 'twitter-api-v2'
 
 import * as types from './types'
-import config from './config'
+import { ChatGPTAPIAccount, ChatGPTAPIPool } from './chatgpt-api-pool'
+import config, {
+  defaultMaxNumMentionsToProcessPerBatch,
+  twitterBotUserId
+} from './config'
 import { respondToNewMentions } from './respond-to-new-mentions'
 import { maxTwitterId } from './twitter'
+import {
+  loadUserMentionCacheFromDiskByUserId,
+  saveAllUserMentionCachesToDisk
+} from './twitter-mentions'
 
 async function main() {
   const dryRun = !!process.env.DRY_RUN
+  const noCache = !!process.env.NO_CACHE
   const earlyExit = !!process.env.EARLY_EXIT
   const debugTweet = process.env.DEBUG_TWEET
   const defaultSinceMentionId = process.env.SINCE_ID
@@ -23,10 +32,34 @@ async function main() {
     10
   )
 
-  const chatgpt = new ChatGPTAPI({
-    sessionToken: process.env.SESSION_TOKEN!,
-    markdown: tweetMode === 'image' ? true : false
-  })
+  const markdown = tweetMode === 'image' ? true : false
+  const chatgptAccountsRaw = process.env.CHATGPT_ACCOUNTS
+  const chatgptAccounts: ChatGPTAPIAccount[] = chatgptAccountsRaw
+    ? JSON.parse(chatgptAccountsRaw)
+    : null
+
+  let chatgpt: ChatGPTAPI
+
+  if (chatgptAccounts?.length) {
+    console.log(
+      `Initializing ChatGPTAPIPool with ${chatgptAccounts.length} accounts`
+    )
+
+    chatgpt = new ChatGPTAPIPool(chatgptAccounts, {
+      markdown
+    })
+  } else {
+    console.log(`Initializing a single instance of ChatGPTAPI`)
+
+    chatgpt = new ChatGPTAPI({
+      sessionToken: process.env.SESSION_TOKEN!,
+      markdown
+    })
+  }
+
+  if (!noCache) {
+    await loadUserMentionCacheFromDiskByUserId({ userId: twitterBotUserId })
+  }
 
   // for testing chatgpt
   // await chatgpt.ensureAuth()
@@ -35,7 +68,7 @@ async function main() {
   // return
 
   const maxNumMentionsToProcess = isNaN(overrideMaxNumMentionsToProcess)
-    ? 5
+    ? defaultMaxNumMentionsToProcessPerBatch
     : overrideMaxNumMentionsToProcess
 
   let sinceMentionId = resolveAllMentions
@@ -108,6 +141,7 @@ async function main() {
       console.log()
       const session = await respondToNewMentions({
         dryRun,
+        noCache,
         earlyExit,
         forceReply,
         debugTweet,
@@ -148,12 +182,16 @@ async function main() {
         interactions = interactions.concat(session.interactions)
       }
 
+      if (!noCache) {
+        await saveAllUserMentionCachesToDisk()
+      }
+
       if (debugTweet) {
         break
       }
 
       if (session.isExpiredAuth) {
-        if (++numErrors > 10) {
+        if (++numErrors > 50) {
           throw new Error(
             'ChatGPT auth expired error; unrecoverable. Please update SESSION_TOKEN'
           )
@@ -175,7 +213,7 @@ async function main() {
             session.isRateLimited ? 'chatgpt' : 'twitter'
           }; sleeping...`
         )
-        await delay(5 * 60 * 1000) // 5m
+        await delay(2 * 60 * 1000) // 1m
 
         if (session.isRateLimitedTwitter) {
           console.log('sleeping longer for twitter rate limit...')
@@ -195,7 +233,7 @@ async function main() {
       } else {
         console.log('sleeping...')
         // still sleep if there are active mentions because of rate limits...
-        await delay(10000)
+        await delay(2000)
       }
 
       ++loopNum

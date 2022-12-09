@@ -43,11 +43,12 @@ async function createTweetImpl(
     console.error('error creating tweet', JSON.stringify(err, null, 2))
 
     if (err.status === 403) {
+      // user may have deleted the tweet we're trying to respond to
       const error = new types.ChatError(
         err.error?.detail || `error creating tweet: 403 forbidden`
       )
       error.isFinal = true
-      error.type = 'twitter:duplicate'
+      error.type = 'twitter:forbidden'
       throw error
     } else if (err.status === 400) {
       if (
@@ -68,13 +69,6 @@ async function createTweetImpl(
       )
       error.isFinal = false
       error.type = 'twitter:rate-limit'
-      throw error
-    } else if (err.status === 403) {
-      const error = new types.ChatError(
-        `error creating tweet: 403 forbidden (user may have deleted the tweet)`
-      )
-      error.isFinal = true
-      error.type = 'twitter:forbidden'
       throw error
     }
 
@@ -148,6 +142,34 @@ export function minTwitterId(tweetIdA?: string, tweetIdB?: string): string {
   }
 
   return tweetIdB
+}
+
+/**
+ * JS comparator function for comparing two Tweet IDs.
+ */
+export function tweetIdComparator(a: string, b: string): number {
+  if (a === b) {
+    return 0
+  }
+
+  const max = maxTwitterId(a, b)
+  if (max === a) {
+    return 1
+  } else {
+    return -1
+  }
+}
+
+/**
+ * JS comparator function for comparing two tweet-like objects.
+ */
+export function tweetComparator(
+  tweetA: { id: string },
+  tweetB: { id: string }
+): number {
+  const a = tweetA.id
+  const b = tweetB.id
+  return tweetIdComparator(a, b)
 }
 
 /**
