@@ -6,9 +6,12 @@ import random from 'random'
 import { ChatError } from './types'
 
 type ChatGPTAPIInstance = InstanceType<typeof ChatGPTAPI>
+type ChatGPTAPISendMessageOptions = Parameters<
+  ChatGPTAPIInstance['sendMessage']
+>[1]
 
 export type ChatGPTAPIAccount = {
-  // TODO
+  // TODO: support email and password to renew auth
   email?: string
   password: string
   sessionToken: string
@@ -30,6 +33,7 @@ type ChatGPTAPIAccountInstance = {
  */
 export class ChatGPTAPIPool extends ChatGPTAPI {
   protected _accounts: Array<ChatGPTAPIAccountInstance>
+  protected _accountsMap: Record<string, ChatGPTAPIAccountInstance>
   protected _accountsOnCooldown: QuickLRU<string, boolean>
   protected _accountCooldownMs: number
   protected _accountOffset: number
@@ -60,6 +64,14 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
       account
     }))
 
+    this._accountsMap = this._accounts.reduce(
+      (map, account) => ({
+        ...map,
+        [account.id]: account
+      }),
+      {}
+    )
+
     this._accountOffset = 0
     this._accountCooldownMs = apiCooldownMs
     this._accountsOnCooldown = new QuickLRU<string, boolean>({
@@ -84,6 +96,29 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
     } while (true)
   }
 
+  async getAPIAccountInstanceById(
+    accountId: string
+  ): Promise<ChatGPTAPIAccountInstance> {
+    const account = this._accountsMap[accountId]
+    if (!account) {
+      return null
+    }
+
+    if (!this._accountsOnCooldown.has(account.id)) {
+      return account
+    }
+
+    console.log(`ChatGPT account ${account.id} is on cooldown; sleeping...`)
+
+    do {
+      await delay(1000)
+
+      if (!this._accountsOnCooldown.has(account.id)) {
+        return account
+      }
+    } while (true)
+  }
+
   override async getIsAuthenticated() {
     const account = await this.getAPIAccountInstance()
     return await account.api.getIsAuthenticated()
@@ -100,14 +135,51 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
   }
 
   override async sendMessage(
-    ...args: Parameters<ChatGPTAPIInstance['sendMessage']>
+    prompt: string,
+    opts: ChatGPTAPISendMessageOptions
   ) {
+    const res = await this.sendMessageToAccount(prompt, opts)
+    return res.response
+  }
+
+  async sendMessageToAccount(
+    prompt: string,
+    opts: ChatGPTAPISendMessageOptions & {
+      accountId?: string
+    }
+  ): Promise<{ response: string; accountId: string }> {
+    let { accountId, ...rest } = opts
     let account: ChatGPTAPIAccountInstance
 
     try {
-      account = await this.getAPIAccountInstance()
+      if (!accountId && opts.conversationId) {
+        // If there is no account specified, but the request is part of an existing
+        // conversation, then use the default account which handled all conversations
+        // before we added support for multiple accounts.
+        accountId = this._accounts[0].id
+      }
+
+      if (accountId) {
+        account = await this.getAPIAccountInstanceById(accountId)
+
+        if (!account) {
+          // TODO: this is a really bad edge case because it means the account that
+          // we previously used in this conversation is no longer available... I'm
+          // really not sure how to handle this aside from throwing an unrecoverable
+          // error to the user
+          const error = new ChatError(
+            `ChatGPTAPIPool account not found "${accountId}"`
+          )
+          error.type = 'chatgpt:pool:account-not-found'
+          error.isFinal = false
+          throw error
+        }
+      } else {
+        account = await this.getAPIAccountInstance()
+      }
+
       console.log('using chatgpt account', account.id)
-      const response = await account.api.sendMessage(...args)
+      const response = await account.api.sendMessage(prompt, rest)
 
       const responseL = response.toLowerCase()
       if (responseL.includes('too many requests, please slow down')) {
@@ -125,7 +197,7 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
         return null
       }
 
-      return response
+      return { response, accountId: account.id }
     } catch (err) {
       if (err.name === 'TimeoutError') {
         // ChatGPT timed out

@@ -199,6 +199,7 @@ export async function respondToNewMentions({
               result.chatgptConversationId =
                 prevInteraction.chatgptConversationId
               result.chatgptParentMessageId = prevInteraction.chatgptMessageId
+              result.chatgptAccountId = prevInteraction.chatgptAccountId
             }
           }
 
@@ -206,7 +207,8 @@ export async function respondToNewMentions({
             chatgpt,
             stripMentions: tweetMode === 'image' ? false : true,
             conversationId: result.chatgptConversationId,
-            parentMessageId: result.chatgptParentMessageId
+            parentMessageId: result.chatgptParentMessageId,
+            chatgptAccountId: result.chatgptAccountId
           })
 
           // console.log('chatgptResponse', chatgptResponse)
@@ -214,6 +216,7 @@ export async function respondToNewMentions({
           result.response = response
           result.chatgptConversationId = chatgptResponse.conversationId
           result.chatgptMessageId = chatgptResponse.messageId
+          result.chatgptAccountId = chatgptResponse.accountId
 
           const responseL = response.toLowerCase()
           if (responseL.includes('too many requests, please slow down')) {
@@ -369,6 +372,32 @@ export async function respondToNewMentions({
               // That account will be taken out of the pool and put on cooldown, but
               // for a hard 429, let's still rate limit ourselves to avoid IP bans.
               session.isRateLimited = true
+            } else if (err.type === 'chatgpt:pool:account-not-found') {
+              console.error(err.toString)
+
+              try {
+                if (!dryRun) {
+                  const tweet = await createTweet(
+                    {
+                      text: `Uh-oh ChatGPTBot ran into an unexpected error responding to your conversation. Sorry 😓\n\nRef: ${promptTweetId}`,
+                      reply: {
+                        in_reply_to_tweet_id: promptTweetId
+                      }
+                    },
+                    {
+                      twitter,
+                      dryRun
+                    }
+                  )
+
+                  result.responseTweetIds = [tweet?.id].filter(Boolean)
+                }
+              } catch (err2) {
+                console.warn(
+                  `warning: twitter error responding to tweet after ChatGPT account not found error`,
+                  err2.toString()
+                )
+              }
             }
           } else if (
             err.toString().toLowerCase() === 'error: chatgptapi error 429'
@@ -379,33 +408,35 @@ export async function respondToNewMentions({
             err.toString().toLowerCase() === 'error: chatgptapi error 503' ||
             err.toString().toLowerCase() === 'error: chatgptapi error 502'
           ) {
-            // TODO: for now, we won't worry about trying to deal with retrying these requests
-            isFinal = true
+            if (!mention.numFollowers || mention.numFollowers < 4000) {
+              // TODO: for now, we won't worry about trying to deal with retrying these requests
+              isFinal = true
 
-            try {
-              if (!dryRun) {
-                const tweet = await createTweet(
-                  {
-                    text: `Uh-oh ChatGPT's servers are overwhelmed and responded with: "${err.toString()}". Sorry 😓\n\nRef: ${promptTweetId}`,
-                    reply: {
-                      in_reply_to_tweet_id: promptTweetId
+              try {
+                if (!dryRun) {
+                  const tweet = await createTweet(
+                    {
+                      text: `Uh-oh ChatGPT's servers are overwhelmed and responded with: "${err.toString()}". Sorry 😓\n\nRef: ${promptTweetId}`,
+                      reply: {
+                        in_reply_to_tweet_id: promptTweetId
+                      }
+                    },
+                    {
+                      twitter,
+                      dryRun
                     }
-                  },
-                  {
-                    twitter,
-                    dryRun
-                  }
-                )
+                  )
 
-                result.responseTweetIds = [tweet?.id].filter(Boolean)
+                  result.responseTweetIds = [tweet?.id].filter(Boolean)
+                }
+              } catch (err2) {
+                // ignore follow-up errors
+                console.warn(
+                  `warning: twitter error responding to tweet after ChatGPT error`,
+                  err.toString,
+                  err2.toString()
+                )
               }
-            } catch (err2) {
-              // ignore follow-up errors
-              console.warn(
-                `warning: twitter error responding to tweet after ChatGPT error`,
-                err.toString,
-                err2.toString()
-              )
             }
           }
 

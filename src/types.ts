@@ -29,6 +29,7 @@ export interface ChatGPTInteraction {
   chatgptConversationId?: string
   chatgptParentMessageId?: string
   chatgptMessageId?: string
+  chatgptAccountId?: string
 
   error?: string
   isErrorFinal?: boolean
@@ -48,9 +49,10 @@ export interface ChatGPTSession {
 }
 
 export interface ChatGPTResponse {
+  response: string
   conversationId?: string
   messageId?: string
-  response: string
+  accountId?: string
 }
 
 type Unpacked<T> = T extends (infer U)[] ? U : T
@@ -108,6 +110,7 @@ export type ChatErrorType =
   | 'chatgpt:pool:timeout'
   | 'chatgpt:pool:rate-limit'
   | 'chatgpt:pool:unavailable'
+  | 'chatgpt:pool:account-not-found'
 
 export class ChatError extends Error {
   isFinal: boolean = false
