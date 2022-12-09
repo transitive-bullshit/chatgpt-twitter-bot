@@ -48,3 +48,4 @@ next-env.d.ts
 test.html
 
 /accounts.js
+/out/

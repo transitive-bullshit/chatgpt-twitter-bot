@@ -3,6 +3,7 @@ import urlRegex from 'url-regex'
 
 import * as types from './types'
 import {
+  defaultMaxNumMentionsToProcessPerBatch,
   priorityUsersList,
   tweetIgnoreList,
   twitterBotHandle,
@@ -12,7 +13,7 @@ import {
 import { keyv } from './keyv'
 import { maxTwitterId, minTwitterId, tweetComparator } from './twitter'
 import { getTwitterUserIdMentions } from './twitter-mentions'
-import { getTweetUrl, pick } from './utils'
+import { getTweetUrl } from './utils'
 
 const rUrl = urlRegex()
 
@@ -27,7 +28,7 @@ export async function getTweetMentionsBatch({
   resolveAllMentions,
   twitter,
   sinceMentionId,
-  maxNumMentionsToProcess = 5
+  maxNumMentionsToProcess = defaultMaxNumMentionsToProcessPerBatch
 }: {
   noCache?: boolean
   forceReply?: boolean
@@ -150,8 +151,6 @@ export async function getTweetMentionsBatch({
     // make sure we don't skip past these mentions on the next batch
     batch.minSinceMentionId = minTwitterId(batch.minSinceMentionId, mention.id)
   }
-
-  console.log('SORTED', batch.mentions)
 
   batch.numMentionsPostponed = Math.max(
     0,
@@ -366,10 +365,10 @@ export function isValidMention(
         (repliedToTweet?.numMentions === numMentions &&
           repliedToTweet?.isReply))
     ) {
-      console.log('ignoring mention 0', mention, {
-        repliedToTweet,
-        numMentions
-      })
+      // console.log('ignoring mention 0', mention, {
+      //   repliedToTweet,
+      //   numMentions
+      // })
 
       updateSinceMentionId(mention.id)
       return false
@@ -384,18 +383,18 @@ export function isValidMention(
       // }
     }
   } else {
-    console.log('ignoring mention 2', pick(mention, 'text', 'id'), {
-      numMentions
-    })
+    // console.log('ignoring mention 2', pick(mention, 'text', 'id'), {
+    //   numMentions
+    // })
 
     updateSinceMentionId(mention.id)
     return false
   }
 
-  console.log(JSON.stringify(mention, null, 2), {
-    numMentions,
-    repliedToTweet
-  })
+  // console.log(JSON.stringify(mention, null, 2), {
+  //   numMentions,
+  //   repliedToTweet
+  // })
   // console.log(pick(mention, 'id', 'text', 'prompt'), { numMentions })
   return true
 }

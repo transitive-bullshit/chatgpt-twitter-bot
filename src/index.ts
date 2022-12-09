@@ -5,7 +5,10 @@ import { TwitterApi } from 'twitter-api-v2'
 
 import * as types from './types'
 import { ChatGPTAPIAccount, ChatGPTAPIPool } from './chatgpt-api-pool'
-import config, { twitterBotUserId } from './config'
+import config, {
+  defaultMaxNumMentionsToProcessPerBatch,
+  twitterBotUserId
+} from './config'
 import { respondToNewMentions } from './respond-to-new-mentions'
 import { maxTwitterId } from './twitter'
 import {
@@ -65,7 +68,7 @@ async function main() {
   // return
 
   const maxNumMentionsToProcess = isNaN(overrideMaxNumMentionsToProcess)
-    ? 5
+    ? defaultMaxNumMentionsToProcessPerBatch
     : overrideMaxNumMentionsToProcess
 
   let sinceMentionId = resolveAllMentions

@@ -61,7 +61,7 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
     this._accountOffset = 0
     this._accountCooldownMs = apiCooldownMs
     this._accountsOnCooldown = new QuickLRU<string, boolean>({
-      maxSize: 1000,
+      maxSize: 1024,
       maxAge: apiCooldownMs
     })
   }
@@ -104,9 +104,10 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
 
     try {
       account = await this.getAPIAccountInstance()
-      const res = await account.api.sendMessage(...args)
+      console.log('using chatgpt account', account.id)
+      const response = await account.api.sendMessage(...args)
 
-      const responseL = res.toLowerCase()
+      const responseL = response.toLowerCase()
       if (responseL.includes('too many requests, please slow down')) {
         this._accountsOnCooldown.set(account.id, true, {
           maxAge: this._accountCooldownMs * 2
@@ -121,6 +122,8 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
         this._accountsOnCooldown.set(account.id, true)
         return null
       }
+
+      return response
     } catch (err) {
       if (err.name === 'TimeoutError') {
         // ChatGPT timed out

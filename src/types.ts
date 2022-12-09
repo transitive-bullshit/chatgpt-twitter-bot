@@ -103,7 +103,6 @@ export type ChatErrorType =
   | 'unknown'
   | 'timeout'
   | 'twitter:auth'
-  | 'twitter:duplicate'
   | 'twitter:forbidden'
   | 'twitter:rate-limit'
 

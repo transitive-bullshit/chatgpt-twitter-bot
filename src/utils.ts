@@ -55,7 +55,7 @@ export async function getChatGPTResponse(
       error: err
     })
 
-    throw new Error(`ChatGPT error: ${err.toString()}`)
+    throw err
   }
 
   response = response?.trim()
