@@ -334,6 +334,14 @@ export function isValidMention(
     return false
   }
 
+  if (
+    mention.prompt.startsWith('(human) ') &&
+    priorityUsersList.has(mention.author_id)
+  ) {
+    // ignore tweets where I'm responding to people
+    return false
+  }
+
   const repliedToTweetRef = mention.referenced_tweets?.find(
     (t) => t.type === 'replied_to'
   )

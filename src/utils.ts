@@ -28,6 +28,9 @@ export async function getChatGPTResponse(
   let response: string
   let messageId: string
 
+  const origConversationId = conversationId
+  const origParentMessageId = parentMessageId
+
   const onConversationResponse = (res: ConversationResponseEvent) => {
     if (res.conversation_id) {
       conversationId = res.conversation_id
@@ -38,25 +41,39 @@ export async function getChatGPTResponse(
     }
   }
 
-  try {
-    console.log('chatgpt.sendMessage', prompt, {
-      conversationId,
-      parentMessageId
-    })
-    response = await chatgpt.sendMessage(prompt, {
-      timeoutMs: timeoutMs,
-      conversationId,
-      parentMessageId,
-      onConversationResponse
-    })
-  } catch (err: any) {
-    console.error('ChatGPT error', {
-      prompt,
-      error: err
-    })
+  do {
+    try {
+      console.log('chatgpt.sendMessage', prompt, {
+        conversationId,
+        parentMessageId
+      })
+      response = await chatgpt.sendMessage(prompt, {
+        timeoutMs: timeoutMs,
+        conversationId,
+        parentMessageId,
+        onConversationResponse
+      })
 
-    throw err
-  }
+      break
+    } catch (err: any) {
+      console.error('ChatGPT error', {
+        prompt,
+        error: err
+      })
+
+      if (
+        err.toString().toLowerCase() === 'error: chatgptapi error 404' &&
+        origConversationId
+      ) {
+        // retry
+        conversationId = undefined
+        parentMessageId = undefined
+        continue
+      }
+
+      throw err
+    }
+  } while (true)
 
   response = response?.trim()
   if (stripMentions) {
