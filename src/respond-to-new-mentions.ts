@@ -4,6 +4,7 @@ import pMap from 'p-map'
 import rmfr from 'rmfr'
 
 import * as types from './types'
+import { ChatGPTAPIPool } from './chatgpt-api-pool'
 import { enableRedis, twitterBotHandle, twitterBotUserId } from './config'
 import { handlePromptLanguage } from './handle-language'
 import { keyv } from './keyv'
@@ -376,7 +377,9 @@ export async function respondToNewMentions({
               }
             }
 
-            await delay(5000)
+            if (!(chatgpt instanceof ChatGPTAPIPool)) {
+              await delay(10000)
+            }
           } else if (err instanceof types.ChatError) {
             if (err.type === 'twitter:auth') {
               // Reset twitter auth
@@ -386,29 +389,15 @@ export async function respondToNewMentions({
             } else if (err.type === 'chatgpt:pool:timeout') {
               // Ignore because that account will be taken out of the pool and
               // put on cooldown
-              if (err.accountId) {
-                result.chatgptAccountId = err.accountId
-              }
             } else if (err.type === 'chatgpt:pool:unavailable') {
               // Ignore because that account will be taken out of the pool and
               // put on cooldown
-              if (err.accountId) {
-                result.chatgptAccountId = err.accountId
-              }
             } else if (err.type === 'chatgpt:pool:rate-limit') {
               // That account will be taken out of the pool and put on cooldown, but
               // for a hard 429, let's still rate limit ourselves to avoid IP bans.
               session.isRateLimited = true
-
-              if (err.accountId) {
-                result.chatgptAccountId = err.accountId
-              }
             } else if (err.type === 'chatgpt:pool:account-not-found') {
               console.error(err.toString)
-
-              if (err.accountId) {
-                result.chatgptAccountId = err.accountId
-              }
 
               try {
                 if (!dryRun) {
@@ -475,8 +464,15 @@ export async function respondToNewMentions({
             }
           }
 
+          if (err.accountId) {
+            result.chatgptAccountId = err.accountId
+          }
+
           result.error = err.toString()
           result.isErrorFinal = !!isFinal
+
+          console.log('interaction error', result)
+          console.log()
 
           if (result.isErrorFinal && enableRedis && !dryRun) {
             // Store final errors so we don't try to re-process them
@@ -487,7 +483,7 @@ export async function respondToNewMentions({
         }
       },
       {
-        concurrency: 3
+        concurrency: 2
       }
     )
   ).filter(Boolean)

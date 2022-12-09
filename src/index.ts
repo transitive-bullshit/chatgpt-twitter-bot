@@ -57,9 +57,7 @@ async function main() {
     })
   }
 
-  if (!noCache) {
-    await loadUserMentionCacheFromDiskByUserId({ userId: twitterBotUserId })
-  }
+  await loadUserMentionCacheFromDiskByUserId({ userId: twitterBotUserId })
 
   // for testing chatgpt
   // await chatgpt.ensureAuth()
@@ -182,9 +180,7 @@ async function main() {
         interactions = interactions.concat(session.interactions)
       }
 
-      if (!noCache) {
-        await saveAllUserMentionCachesToDisk()
-      }
+      await saveAllUserMentionCachesToDisk()
 
       if (debugTweet) {
         break

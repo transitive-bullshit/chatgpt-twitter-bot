@@ -177,6 +177,7 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
         }
       } else {
         account = await this.getAPIAccountInstance()
+        accountId = account.id
       }
 
       console.log('using chatgpt account', account.id)
