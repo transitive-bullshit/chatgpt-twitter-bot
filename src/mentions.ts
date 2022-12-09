@@ -82,6 +82,7 @@ export async function getTweetMentionsBatch({
         async (mention) => {
           const res = await keyv.get(mention.id)
           if (res) {
+            updateSinceMentionId(mention.id)
             return null
           } else {
             return mention
@@ -316,7 +317,7 @@ export function isValidMention(
   }: {
     batch: types.TweetMentionBatch
     forceReply?: boolean
-    updateSinceMentionId: (string) => void
+    updateSinceMentionId: (tweetId: string) => void
   }
 ): boolean {
   if (!mention) {

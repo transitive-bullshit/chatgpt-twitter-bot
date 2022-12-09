@@ -54,7 +54,9 @@ async function main() {
     })
   }
 
-  await loadUserMentionCacheFromDiskByUserId({ userId: twitterBotUserId })
+  if (!noCache) {
+    await loadUserMentionCacheFromDiskByUserId({ userId: twitterBotUserId })
+  }
 
   // for testing chatgpt
   // await chatgpt.ensureAuth()
