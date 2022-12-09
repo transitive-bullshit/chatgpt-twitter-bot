@@ -65,6 +65,15 @@ export type CreatedTweet = AsyncReturnType<
   TwitterClient['tweets']['createTweet']
 >['data']
 
+export type TweetsQueryOptions = Pick<
+  Parameters<TwitterClient['tweets']['findTweetsById']>[0],
+  'expansions' | 'tweet.fields' | 'user.fields'
+>
+
+export type TwitterUserIdMentionsQueryOptions = Parameters<
+  TwitterClient['tweets']['usersIdMentions']
+>[1]
+
 export type TweetMention = Partial<Tweet> & {
   prompt?: string
   numMentions?: number
@@ -82,6 +91,18 @@ export type TweetMentionBatch = {
   sinceMentionId: string
   numMentionsPostponed: number
 }
+
+export type TweetMentionResult = {
+  mentions: TweetMention[]
+  users: Record<string, Partial<TwitterUser>>
+  tweets: Record<string, TweetMention>
+  sinceMentionId: string
+}
+
+export type TwitterUserIdMentionsCache = Record<
+  string,
+  Record<string, TweetMentionResult>
+>
 
 export type ChatErrorType =
   | 'unknown'

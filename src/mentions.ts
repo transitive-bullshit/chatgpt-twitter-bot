@@ -1,4 +1,3 @@
-import delay from 'delay'
 import pMap from 'p-map'
 import urlRegex from 'url-regex'
 
@@ -11,7 +10,7 @@ import {
   twitterBotUserId
 } from './config'
 import { keyv } from './keyv'
-import { maxTwitterId, minTwitterId } from './twitter'
+import { getTwitterUserIdMentions, maxTwitterId, minTwitterId } from './twitter'
 import { getTweetUrl, pick } from './utils'
 
 const rUrl = urlRegex()
@@ -181,22 +180,25 @@ export async function populateTweetMentionsBatch({
   resolveAllMentions?: boolean
   twitter: types.TwitterClient
 }) {
-  let sinceMentionId = batch.sinceMentionId
-  console.log('fetching mentions since', sinceMentionId || 'forever')
+  console.log('fetching mentions since', batch.sinceMentionId || 'forever')
+
+  const tweetQueryOptions: types.TweetsQueryOptions = {
+    expansions: ['author_id', 'in_reply_to_user_id', 'referenced_tweets.id'],
+    'tweet.fields': [
+      'created_at',
+      'public_metrics',
+      'conversation_id',
+      'in_reply_to_user_id',
+      'referenced_tweets'
+    ],
+    'user.fields': ['profile_image_url', 'public_metrics']
+  }
 
   if (debugTweet) {
     const ids = debugTweet.split(',').map((id) => id.trim())
     const res = await twitter.tweets.findTweetsById({
-      ids: ids,
-      expansions: ['author_id', 'in_reply_to_user_id', 'referenced_tweets.id'],
-      'tweet.fields': [
-        'created_at',
-        'public_metrics',
-        'conversation_id',
-        'in_reply_to_user_id',
-        'referenced_tweets'
-      ],
-      'user.fields': ['profile_image_url', 'public_metrics']
+      ...tweetQueryOptions,
+      ids: ids
     })
 
     batch.mentions = batch.mentions.concat(res.data)
@@ -213,68 +215,22 @@ export async function populateTweetMentionsBatch({
       }
     }
   } else {
-    let lastSinceMentionId = sinceMentionId
-
-    do {
-      console.log('twitter.tweets.usersIdMentions', { sinceMentionId })
-      const mentionsQuery = twitter.tweets.usersIdMentions(twitterBotUserId, {
-        expansions: [
-          'author_id',
-          'in_reply_to_user_id',
-          'referenced_tweets.id'
-        ],
-        'tweet.fields': [
-          'created_at',
-          'public_metrics',
-          'conversation_id',
-          'in_reply_to_user_id',
-          'referenced_tweets'
-        ],
-        'user.fields': ['profile_image_url', 'public_metrics'],
+    const result = await getTwitterUserIdMentions(
+      twitterBotUserId,
+      {
+        ...tweetQueryOptions,
         max_results: 100,
-        since_id: sinceMentionId
-      })
-
-      let numMentionsInQuery = 0
-      let numPagesInQuery = 0
-      for await (const page of mentionsQuery) {
-        numPagesInQuery++
-
-        if (page.data?.length) {
-          numMentionsInQuery += page.data?.length
-          batch.mentions = batch.mentions.concat(page.data)
-
-          for (const mention of page.data) {
-            sinceMentionId = maxTwitterId(sinceMentionId, mention.id)
-          }
-        }
-
-        if (page.includes?.users?.length) {
-          for (const user of page.includes.users) {
-            batch.users[user.id] = user
-          }
-        }
-
-        if (page.includes?.tweets?.length) {
-          for (const tweet of page.includes.tweets) {
-            batch.tweets[tweet.id] = tweet
-          }
-        }
+        since_id: batch.sinceMentionId
+      },
+      {
+        twitter,
+        resolveAllMentions
       }
+    )
 
-      console.log({ numMentionsInQuery, numPagesInQuery })
-      if (
-        !numMentionsInQuery ||
-        !resolveAllMentions ||
-        sinceMentionId === lastSinceMentionId
-      ) {
-        break
-      }
-
-      lastSinceMentionId = sinceMentionId
-      console.log('pausing for twitter...')
-      await delay(6000)
-    } while (true)
+    batch.mentions = result.mentions
+    batch.users = result.users
+    batch.tweets = result.tweets
   }
 }
 

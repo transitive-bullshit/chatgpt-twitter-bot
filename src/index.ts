@@ -4,6 +4,7 @@ import { Client as TwitterClient, auth } from 'twitter-api-sdk'
 import { TwitterApi } from 'twitter-api-v2'
 
 import * as types from './types'
+import { ChatGPTAPIAccount, ChatGPTAPIPool } from './chatgpt-api-pool'
 import config from './config'
 import { respondToNewMentions } from './respond-to-new-mentions'
 import { maxTwitterId } from './twitter'
@@ -23,10 +24,23 @@ async function main() {
     10
   )
 
-  const chatgpt = new ChatGPTAPI({
-    sessionToken: process.env.SESSION_TOKEN!,
-    markdown: tweetMode === 'image' ? true : false
-  })
+  const chatgptAccountsRaw = process.env.CHATGPT_ACCOUNTS
+  const chatgptAccounts: ChatGPTAPIAccount[] = chatgptAccountsRaw
+    ? JSON.parse(chatgptAccountsRaw)
+    : null
+
+  let chatgpt: ChatGPTAPI
+
+  if (chatgptAccounts?.length) {
+    chatgpt = new ChatGPTAPIPool(chatgptAccounts, {
+      markdown: tweetMode === 'image' ? true : false
+    })
+  } else {
+    chatgpt = new ChatGPTAPI({
+      sessionToken: process.env.SESSION_TOKEN!,
+      markdown: tweetMode === 'image' ? true : false
+    })
+  }
 
   // for testing chatgpt
   // await chatgpt.ensureAuth()
@@ -175,7 +189,7 @@ async function main() {
             session.isRateLimited ? 'chatgpt' : 'twitter'
           }; sleeping...`
         )
-        await delay(5 * 60 * 1000) // 5m
+        await delay(1 * 60 * 1000) // 1m
 
         if (session.isRateLimitedTwitter) {
           console.log('sleeping longer for twitter rate limit...')
@@ -195,7 +209,7 @@ async function main() {
       } else {
         console.log('sleeping...')
         // still sleep if there are active mentions because of rate limits...
-        await delay(10000)
+        await delay(2000)
       }
 
       ++loopNum
