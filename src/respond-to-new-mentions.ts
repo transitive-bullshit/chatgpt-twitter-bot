@@ -359,6 +359,16 @@ export async function respondToNewMentions({
               session.isExpiredAuthTwitter = true
             } else if (err.type === 'twitter:rate-limit') {
               session.isRateLimitedTwitter = true
+            } else if (err.type === 'chatgpt:pool:timeout') {
+              // Ignore because that account will be taken out of the pool and
+              // put on cooldown
+            } else if (err.type === 'chatgpt:pool:unavailable') {
+              // Ignore because that account will be taken out of the pool and
+              // put on cooldown
+            } else if (err.type === 'chatgpt:pool:rate-limit') {
+              // That account will be taken out of the pool and put on cooldown, but
+              // for a hard 429, let's still rate limit ourselves to avoid IP bans.
+              session.isRateLimited = true
             }
           } else if (
             err.toString().toLowerCase() === 'error: chatgptapi error 429'
