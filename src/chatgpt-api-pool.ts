@@ -1,7 +1,6 @@
 import { ChatGPTAPI } from 'chatgpt'
 import delay from 'delay'
 import QuickLRU from 'quick-lru'
-import random from 'random'
 
 import { ChatError } from './types'
 

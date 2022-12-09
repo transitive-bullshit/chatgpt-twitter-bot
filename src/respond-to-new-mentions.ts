@@ -325,34 +325,33 @@ export async function respondToNewMentions({
           let isFinal = !!err.isFinal
 
           if (err.name === 'TimeoutError') {
-            // TODO: for now, we won't worry about trying to deal with retrying timeouts
-            isFinal = true
+            if (!mention.numFollowers || mention.numFollowers < 4000) {
+              // TODO: for now, we won't worry about trying to deal with retrying timeouts
+              isFinal = true
 
-            // reset chatgpt auth
-            // session.isExpiredAuth = true
-
-            try {
-              if (!dryRun) {
-                const tweet = await createTweet(
-                  {
-                    text: `Uh-oh ChatGPT timed out responding to your prompt. Sorry 😓\n\nRef: ${promptTweetId}`,
-                    reply: {
-                      in_reply_to_tweet_id: promptTweetId
+              try {
+                if (!dryRun) {
+                  const tweet = await createTweet(
+                    {
+                      text: `Uh-oh ChatGPT timed out responding to your prompt. Sorry 😓\n\nRef: ${promptTweetId}`,
+                      reply: {
+                        in_reply_to_tweet_id: promptTweetId
+                      }
+                    },
+                    {
+                      twitter,
+                      dryRun
                     }
-                  },
-                  {
-                    twitter,
-                    dryRun
-                  }
-                )
+                  )
 
-                result.responseTweetIds = [tweet?.id].filter(Boolean)
+                  result.responseTweetIds = [tweet?.id].filter(Boolean)
+                }
+              } catch (err2) {
+                console.warn(
+                  `warning: twitter error responding to tweet after ChatGPT timeout`,
+                  err2.toString()
+                )
               }
-            } catch (err2) {
-              console.warn(
-                `warning: twitter error responding to tweet after ChatGPT timeout`,
-                err2.toString()
-              )
             }
 
             await delay(10000)
