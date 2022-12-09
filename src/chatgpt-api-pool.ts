@@ -171,7 +171,7 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
             `ChatGPTAPIPool account not found "${accountId}"`
           )
           error.type = 'chatgpt:pool:account-not-found'
-          error.isFinal = false
+          error.isFinal = true
           throw error
         }
       } else {
