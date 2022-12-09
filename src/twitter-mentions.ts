@@ -7,7 +7,7 @@ import BTree from 'sorted-btree'
 
 import * as config from './config'
 import * as types from './types'
-import { maxTwitterId } from './twitter'
+import { maxTwitterId, tweetIdComparator } from './twitter'
 
 /**
  * NOTE: Twitter's API restricts the number of tweets we can fetch from their
@@ -58,18 +58,7 @@ export class TwitterUserMentionsCache {
 
   mentions: BTree<string, types.TweetMention> = new BTreeClass(
     undefined,
-    (a: string, b: string) => {
-      if (a === b) {
-        return 0
-      }
-
-      const max = maxTwitterId(a, b)
-      if (max === a) {
-        return 1
-      } else {
-        return -1
-      }
-    }
+    tweetIdComparator
   )
   users: Record<string, Partial<types.TwitterUser>> = {}
   tweets: Record<string, types.TweetMention> = {}
@@ -162,12 +151,14 @@ export class TwitterUserMentionsCache {
       const cache = new TwitterUserMentionsCache({ userId })
       cache.addResult(parsed)
       return cache
-    } catch (err) {
-      // ignore error with warning (cache may not exist yet)
-      console.warn(
-        `warning failed to load TwitterUsersMentionCache from disk (${filePath})`,
-        err
-      )
+    } catch (err: any) {
+      if (err.code !== 'ENOENT') {
+        // ignore error with warning (cache may not exist yet)
+        console.warn(
+          `warning failed to load TwitterUsersMentionCache from disk (${filePath})`,
+          err
+        )
+      }
     }
 
     return null

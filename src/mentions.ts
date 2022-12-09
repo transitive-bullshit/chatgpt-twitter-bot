@@ -10,7 +10,7 @@ import {
   twitterBotUserId
 } from './config'
 import { keyv } from './keyv'
-import { maxTwitterId, minTwitterId } from './twitter'
+import { maxTwitterId, minTwitterId, tweetComparator } from './twitter'
 import { getTwitterUserIdMentions } from './twitter-mentions'
 import { getTweetUrl, pick } from './utils'
 
@@ -72,7 +72,7 @@ export async function getTweetMentionsBatch({
   const numMentionsValid = batch.mentions.length
 
   // Sort the oldest mentions first
-  batch.mentions = batch.mentions.reverse()
+  batch.mentions = batch.mentions.sort(tweetComparator)
 
   // Filter any mentions which we've already replied to
   if (!forceReply) {
@@ -115,7 +115,7 @@ export async function getTweetMentionsBatch({
     mention.isReply = isReply
 
     if (isReply) {
-      score -= 5
+      score -= 3
     }
 
     if (priorityUsersList.has(mention.author_id)) {

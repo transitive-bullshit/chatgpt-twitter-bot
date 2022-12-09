@@ -151,6 +151,34 @@ export function minTwitterId(tweetIdA?: string, tweetIdB?: string): string {
 }
 
 /**
+ * JS comparator function for comparing two Tweet IDs.
+ */
+export function tweetIdComparator(a: string, b: string): number {
+  if (a === b) {
+    return 0
+  }
+
+  const max = maxTwitterId(a, b)
+  if (max === a) {
+    return 1
+  } else {
+    return -1
+  }
+}
+
+/**
+ * JS comparator function for comparing two tweet-like objects.
+ */
+export function tweetComparator(
+  tweetA: { id: string },
+  tweetB: { id: string }
+): number {
+  const a = tweetA.id
+  const b = tweetB.id
+  return tweetIdComparator(a, b)
+}
+
+/**
  * Tweets each tweet in the response thread serially one after the other.
  */
 export async function createTwitterThreadForChatGPTResponse({

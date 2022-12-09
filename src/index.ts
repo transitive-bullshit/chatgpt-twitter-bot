@@ -34,16 +34,23 @@ async function main() {
     ? JSON.parse(chatgptAccountsRaw)
     : null
 
+  const markdown = tweetMode === 'image' ? true : false
   let chatgpt: ChatGPTAPI
 
   if (chatgptAccounts?.length) {
+    console.log(
+      `Initializing ChatGPTAPIPool with ${chatgptAccounts.length} accounts`
+    )
+
     chatgpt = new ChatGPTAPIPool(chatgptAccounts, {
-      markdown: tweetMode === 'image' ? true : false
+      markdown
     })
   } else {
+    console.log(`Initializing a single instance of ChatGPTAPI`)
+
     chatgpt = new ChatGPTAPI({
       sessionToken: process.env.SESSION_TOKEN!,
-      markdown: tweetMode === 'image' ? true : false
+      markdown
     })
   }
 
