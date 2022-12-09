@@ -172,6 +172,7 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
           )
           error.type = 'chatgpt:pool:account-not-found'
           error.isFinal = true
+          error.accountId = accountId
           throw error
         }
       } else {
@@ -206,6 +207,7 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
         const error = new ChatError(err.toString())
         error.type = 'chatgpt:pool:timeout'
         error.isFinal = false
+        error.accountId = accountId
         throw error
       } else if (
         err.toString().toLowerCase() === 'error: chatgptapi error 429'
@@ -218,6 +220,7 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
         const error = new ChatError(err.toString())
         error.type = 'chatgpt:pool:rate-limit'
         error.isFinal = false
+        error.accountId = accountId
         throw error
       } else if (
         err.toString().toLowerCase() === 'error: chatgptapi error 503' ||
@@ -230,6 +233,7 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
         const error = new ChatError(err.toString())
         error.type = 'chatgpt:pool:unavailable'
         error.isFinal = true
+        error.accountId = accountId
         throw error
       } else {
         console.error('UNEXPECTED CHATGPT ERROR', err)

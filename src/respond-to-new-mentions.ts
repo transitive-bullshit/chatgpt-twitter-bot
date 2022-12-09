@@ -103,7 +103,7 @@ export async function respondToNewMentions({
   const results = (
     await pMap(
       batch.mentions,
-      async (mention, index): Promise<types.ChatGPTInteraction> => {
+      async (mention): Promise<types.ChatGPTInteraction> => {
         const { prompt, id: promptTweetId, author_id: promptUserId } = mention
         const promptUser = batch.users[mention.author_id]
         const promptUsername = promptUser?.username
@@ -166,6 +166,28 @@ export async function respondToNewMentions({
             return result
           }
 
+          // Double-check that the tweet still exists before asking ChatGPT to
+          // resolve it's response
+          try {
+            const promptTweet = await twitter.tweets.findTweetById(
+              promptTweetId
+            )
+
+            if (!promptTweet?.data) {
+              const error = new types.ChatError(
+                `Tweet not found (possibly deleted): ${promptTweetId}`
+              )
+              error.type = 'twitter:forbidden'
+              error.isFinal = true
+              throw error
+            }
+          } catch (err) {
+            const error = new types.ChatError(err.toString())
+            error.type = 'twitter:forbidden'
+            error.isFinal = true
+            throw error
+          }
+
           console.log(
             'processing',
             pick(
@@ -192,7 +214,7 @@ export async function respondToNewMentions({
               repliedToTweet.id
             )
 
-            if (prevInteraction) {
+            if (prevInteraction && !prevInteraction.error) {
               console.log('prevInteraction', prevInteraction)
 
               // prevInteraction.role should equal 'assistant'
@@ -201,25 +223,6 @@ export async function respondToNewMentions({
               result.chatgptParentMessageId = prevInteraction.chatgptMessageId
               result.chatgptAccountId = prevInteraction.chatgptAccountId
             }
-          }
-
-          // Double-check that the tweet still exists before asking ChatGPT to
-          // resolve it's response
-          try {
-            const promptTweet = await twitter.tweets.findTweetById(
-              promptTweetId
-            )
-
-            if (!promptTweet?.data) {
-              throw new Error(
-                `Tweet not found (possibly deleted): ${promptTweetId}`
-              )
-            }
-          } catch (err) {
-            const error = new types.ChatError(err.toString())
-            error.type = 'twitter:forbidden'
-            error.isFinal = true
-            throw error
           }
 
           const chatgptResponse = await getChatGPTResponse(prompt, {
@@ -383,15 +386,29 @@ export async function respondToNewMentions({
             } else if (err.type === 'chatgpt:pool:timeout') {
               // Ignore because that account will be taken out of the pool and
               // put on cooldown
+              if (err.accountId) {
+                result.chatgptAccountId = err.accountId
+              }
             } else if (err.type === 'chatgpt:pool:unavailable') {
               // Ignore because that account will be taken out of the pool and
               // put on cooldown
+              if (err.accountId) {
+                result.chatgptAccountId = err.accountId
+              }
             } else if (err.type === 'chatgpt:pool:rate-limit') {
               // That account will be taken out of the pool and put on cooldown, but
               // for a hard 429, let's still rate limit ourselves to avoid IP bans.
               session.isRateLimited = true
+
+              if (err.accountId) {
+                result.chatgptAccountId = err.accountId
+              }
             } else if (err.type === 'chatgpt:pool:account-not-found') {
               console.error(err.toString)
+
+              if (err.accountId) {
+                result.chatgptAccountId = err.accountId
+              }
 
               try {
                 if (!dryRun) {
@@ -458,11 +475,15 @@ export async function respondToNewMentions({
             }
           }
 
-          return {
-            ...result,
-            error: err.toString(),
-            isErrorFinal: !!isFinal
+          result.error = err.toString()
+          result.isErrorFinal = !!isFinal
+
+          if (result.isErrorFinal && enableRedis && !dryRun) {
+            // Store final errors so we don't try to re-process them
+            await keyv.set(promptTweetId, { ...result, role: 'user' })
           }
+
+          return result
         }
       },
       {

@@ -115,6 +115,7 @@ export type ChatErrorType =
 export class ChatError extends Error {
   isFinal: boolean = false
   type?: ChatErrorType = 'unknown'
+  accountId?: string
 }
 
 export type TweetMode = 'image' | 'thread'
