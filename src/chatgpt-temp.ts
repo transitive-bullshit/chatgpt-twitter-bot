@@ -1,10 +1,10 @@
-import { ChatGPTAPIAccount, ChatGPTAPIPool } from './chatgpt-api-pool'
+import { ChatGPTAPIAccountInit, ChatGPTAPIPool } from './chatgpt-api-pool'
 import './config'
 import { getChatGPTResponse } from './utils'
 
 async function main() {
   const chatgptAccountsRaw = process.env.CHATGPT_ACCOUNTS
-  const chatgptAccounts: ChatGPTAPIAccount[] = chatgptAccountsRaw
+  const chatgptAccounts: ChatGPTAPIAccountInit[] = chatgptAccountsRaw
     ? JSON.parse(chatgptAccountsRaw)
     : null
 
@@ -14,7 +14,7 @@ async function main() {
     markdown: true
   })
 
-  const account = await chatgpt.getAPIAccountInstance()
+  const account = await chatgpt.getAPIAccount()
   console.log('using chatgpt account', account.id)
 
   const res = await getChatGPTResponse('test', {
@@ -25,7 +25,7 @@ async function main() {
 
   console.log(res)
 
-  const account2 = await chatgpt.getAPIAccountInstance()
+  const account2 = await chatgpt.getAPIAccount()
   console.log('using chatgpt account', account.id)
 
   const res2 = await getChatGPTResponse('can you follow up?', {

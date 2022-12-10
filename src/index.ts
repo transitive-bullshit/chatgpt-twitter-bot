@@ -4,7 +4,7 @@ import { Client as TwitterClient, auth } from 'twitter-api-sdk'
 import { TwitterApi } from 'twitter-api-v2'
 
 import * as types from './types'
-import { ChatGPTAPIAccount, ChatGPTAPIPool } from './chatgpt-api-pool'
+import { ChatGPTAPIAccountInit, ChatGPTAPIPool } from './chatgpt-api-pool'
 import config, {
   defaultMaxNumMentionsToProcessPerBatch,
   twitterBotUserId
@@ -34,7 +34,7 @@ async function main() {
 
   const markdown = tweetMode === 'image' ? true : false
   const chatgptAccountsRaw = process.env.CHATGPT_ACCOUNTS
-  const chatgptAccounts: ChatGPTAPIAccount[] = chatgptAccountsRaw
+  const chatgptAccounts: ChatGPTAPIAccountInit[] = chatgptAccountsRaw
     ? JSON.parse(chatgptAccountsRaw)
     : null
 
