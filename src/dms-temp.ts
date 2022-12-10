@@ -1,7 +1,6 @@
 import { TwitterApi } from 'twitter-api-v2'
 
 import './config'
-import { priorityUsersList } from './config'
 import { respondToDM } from './dms'
 
 async function main() {

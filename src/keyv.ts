@@ -8,6 +8,7 @@ let dms: Keyv
 
 if (config.enableRedis) {
   const redis = new KeyvRedis(config.redisUrl)
+  redis.redis
 
   keyv = new Keyv({ store: redis, namespace: config.redisNamespace })
   dms = new Keyv({ store: redis, namespace: config.redisNamespaceDMs })

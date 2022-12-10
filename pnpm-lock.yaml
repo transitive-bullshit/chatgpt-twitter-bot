@@ -6,7 +6,7 @@ specifiers:
   '@types/node': ^18.11.10
   '@types/rmfr': ^2.0.1
   ava: ^5.1.0
-  chatgpt: 2.0.4
+  chatgpt: 2.0.6
   conf: ^10.2.0
   del-cli: ^5.0.0
   delay: ^5.0.0
@@ -47,7 +47,7 @@ specifiers:
 
 dependencies:
   '@keyv/redis': 2.5.3
-  chatgpt: 2.0.4
+  chatgpt: 2.0.6
   conf: 10.2.0
   dotenv-safe: 8.2.0
   execa: 6.1.0
@@ -935,8 +935,8 @@ packages:
     resolution: {integrity: sha512-shx7oQ0Awen/BRIdkjkvz54PnEEI/EjwXDSIZp86/KKdbafHh1Df/RYGBhn4hbe2+uKC9FnT5UCEdyPz3ai9hQ==}
     dev: false
 
-  /chatgpt/2.0.4:
-    resolution: {integrity: sha512-xHSgzreyJs9h0eE3GSSW7YWWxaFjx9mfEfWzyqEs5XMYDOPZp3GFYyUoVcrXNlJ0+zr7mrFJf+hFCIAWYIHLsw==}
+  /chatgpt/2.0.6:
+    resolution: {integrity: sha512-DTNAZ1Hdg3Oqupvvh0yTfwaOofFTuXiujFYJz9aQfQwnINn/ZbJRp66a79fArw7Vo7WIsxuW2FBH5KdpirrO3A==}
     engines: {node: '>=16.8'}
     dependencies:
       eventsource-parser: 0.0.5
@@ -946,7 +946,7 @@ packages:
       strip-markdown: 5.0.0
       uuid: 9.0.0
     optionalDependencies:
-      undici: 5.13.0
+      undici: 5.14.0
     transitivePeerDependencies:
       - supports-color
     dev: false
@@ -4219,8 +4219,8 @@ packages:
       through: 2.3.8
     dev: false
 
-  /undici/5.13.0:
-    resolution: {integrity: sha512-UDZKtwb2k7KRsK4SdXWG7ErXiL7yTGgLWvk2AXO1JMjgjh404nFo6tWSCM2xMpJwMPx3J8i/vfqEh1zOqvj82Q==}
+  /undici/5.14.0:
+    resolution: {integrity: sha512-yJlHYw6yXPPsuOH0x2Ib1Km61vu4hLiRRQoafs+WUgX1vO64vgnxiCEN9dpIrhZyHFsai3F0AEj4P9zy19enEQ==}
     engines: {node: '>=12.18'}
     requiresBuild: true
     dependencies:

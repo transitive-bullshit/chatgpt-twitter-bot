@@ -1,4 +1,5 @@
 import test from 'ava'
+import { TimeoutError } from 'p-timeout'
 
 import { generateSessionTokenForOpenAIAccount } from './openai-auth'
 
@@ -15,6 +16,19 @@ test('generateSessionTokenForOpenAIAccount', async (t) => {
       },
       {
         message: 'Wrong email or password for OpenAI account "foo@example.com"'
+      }
+    )
+
+    await t.throwsAsync(
+      async () => {
+        await generateSessionTokenForOpenAIAccount({
+          email: 'foo@example.com',
+          password: 'bar',
+          timeoutMs: 1
+        })
+      },
+      {
+        instanceOf: TimeoutError
       }
     )
   } else {

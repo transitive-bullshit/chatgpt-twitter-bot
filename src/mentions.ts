@@ -323,8 +323,6 @@ export function isValidMention(
     updateSinceMentionId: (tweetId: string) => void
   }
 ): boolean {
-  console.log(mention)
-
   if (!mention) {
     return false
   }
