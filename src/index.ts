@@ -45,9 +45,12 @@ async function main() {
       `Initializing ChatGPTAPIPool with ${chatgptAccounts.length} accounts`
     )
 
-    chatgpt = new ChatGPTAPIPool(chatgptAccounts, {
+    const chatgptApiPool = new ChatGPTAPIPool(chatgptAccounts, {
       markdown
     })
+
+    await chatgptApiPool.init()
+    chatgpt = chatgptApiPool
   } else {
     console.log(`Initializing a single instance of ChatGPTAPI`)
 
@@ -55,15 +58,12 @@ async function main() {
       sessionToken: process.env.SESSION_TOKEN!,
       markdown
     })
+
+    await chatgpt.ensureAuth()
   }
 
+  console.log()
   await loadUserMentionCacheFromDiskByUserId({ userId: twitterBotUserId })
-
-  // for testing chatgpt
-  // await chatgpt.ensureAuth()
-  // const res = await chatgpt.sendMessage('this is a test')
-  // console.log(res)
-  // return
 
   const maxNumMentionsToProcess = isNaN(overrideMaxNumMentionsToProcess)
     ? defaultMaxNumMentionsToProcessPerBatch
@@ -128,8 +128,6 @@ async function main() {
   // console.log(user)
   // console.log(await twitterApi.currentUser())
   // return
-
-  await chatgpt.ensureAuth()
 
   let interactions: types.ChatGPTInteraction[] = []
   let loopNum = 0

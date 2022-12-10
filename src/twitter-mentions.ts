@@ -7,13 +7,13 @@ import BTree from 'sorted-btree'
 
 import * as config from './config'
 import * as types from './types'
-import { maxTwitterId, minTwitterId, tweetIdComparator } from './twitter'
+import { maxTwitterId, tweetIdComparator } from './twitter'
 
 /**
  * NOTE: Twitter's API restricts the number of tweets we can fetch from their
  * API, so constantly fetching the same set of mentions over and over as we poll
  * for new mentions is both really inefficient and was going to quickly lead to
- * us going over Twitter's quotas.
+ * us going over Twitter's quota.
  *
  * So we're using a cache of Twitter mentions by User ID, stored in a sorted
  * B-Tree and persisted to disk.
@@ -165,6 +165,12 @@ export class TwitterUserMentionsCache {
   }
 }
 
+/**
+ * Fetches the latest mentions of the given `userId` on Twitter.
+ *
+ * NOTE: even with pagination, **only the 800 most recent Tweets can be retrieved**.
+ * @see https://developer.twitter.com/en/docs/twitter-api/tweets/timelines/api-reference/get-users-id-mentions
+ */
 export async function getTwitterUserIdMentions(
   userId: string,
   opts: types.TwitterUserIdMentionsQueryOptions,
@@ -235,32 +241,18 @@ export async function getTwitterUserIdMentions(
     }
   }
 
-  const isFullSearch = !originalSinceMentionId && resolveAllMentions
-  let direction: 'asc' | 'desc' = 'asc'
-  let minSinceMentionId = originalSinceMentionId || result.mentions[0]?.id
+  // const isFullSearch = !originalSinceMentionId && resolveAllMentions
+  // let minSinceMentionId = originalSinceMentionId || result.mentions[0]?.id
 
   do {
-    console.log(
-      'twitter.tweets.usersIdMentions',
-      direction === 'asc'
-        ? {
-            sinceMentionId: result.sinceMentionId
-          }
-        : {
-            untilMentionId: minSinceMentionId
-          }
-    )
+    console.log('twitter.tweets.usersIdMentions', {
+      sinceMentionId: result.sinceMentionId
+    })
 
-    const tweetQueryOptions = { ...opts }
-    if (direction === 'asc') {
-      tweetQueryOptions.since_id = result.sinceMentionId
-    } else {
-      tweetQueryOptions.until_id = minSinceMentionId
-    }
-    const mentionsQuery = twitter.tweets.usersIdMentions(
-      userId,
-      tweetQueryOptions
-    )
+    const mentionsQuery = twitter.tweets.usersIdMentions(userId, {
+      ...opts,
+      since_id: result.sinceMentionId
+    })
 
     let numMentionsInQuery = 0
     let numPagesInQuery = 0
@@ -272,8 +264,6 @@ export async function getTwitterUserIdMentions(
         result.mentions = result.mentions.concat(page.data)
 
         for (const mention of page.data) {
-          minSinceMentionId = minTwitterId(minSinceMentionId, mention.id)
-
           result.sinceMentionId = maxTwitterId(
             result.sinceMentionId,
             mention.id
@@ -296,11 +286,7 @@ export async function getTwitterUserIdMentions(
 
     console.log({ numMentionsInQuery, numPagesInQuery })
     if (numMentionsInQuery < 5 || !resolveAllMentions) {
-      if (isFullSearch && direction === 'asc') {
-        direction = 'desc'
-      } else {
-        break
-      }
+      break
     }
 
     console.log('pausing for twitter...')

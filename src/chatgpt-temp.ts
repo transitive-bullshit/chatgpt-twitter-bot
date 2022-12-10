@@ -2,6 +2,7 @@ import { ChatGPTAPIAccountInit, ChatGPTAPIPool } from './chatgpt-api-pool'
 import './config'
 import { getChatGPTResponse } from './utils'
 
+// what this demo shows us is that conversations must be associted with openai accounts
 async function main() {
   const chatgptAccountsRaw = process.env.CHATGPT_ACCOUNTS
   const chatgptAccounts: ChatGPTAPIAccountInit[] = chatgptAccountsRaw
@@ -10,9 +11,17 @@ async function main() {
 
   let chatgpt: ChatGPTAPIPool
 
-  chatgpt = new ChatGPTAPIPool(chatgptAccounts.slice(3, 5), {
-    markdown: true
-  })
+  {
+    console.log(
+      `Initializing ChatGPTAPIPool with ${chatgptAccounts.length} accounts`
+    )
+    const chatgptApiPool = new ChatGPTAPIPool(chatgptAccounts, {
+      markdown: true
+    })
+
+    await chatgptApiPool.init()
+    chatgpt = chatgptApiPool
+  }
 
   const account = await chatgpt.getAPIAccount()
   console.log('using chatgpt account', account.id)
