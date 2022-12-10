@@ -72,6 +72,7 @@ test('TwitterUserMentionsCache add mentions multiple batches', async (t) => {
 
   {
     const result = cache.getUserMentionsSince('0')
+    // make sure duplicates are ignored
     t.is(result.mentions.length, 6)
     t.is(Object.keys(result.users).length, 3)
     t.is(Object.keys(result.tweets).length, 1)

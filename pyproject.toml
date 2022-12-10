@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "chatgpt_twitter_bot"
+version = "0.0.1"
+description = "chatgpt-twitter-bot"
+authors = ["Travis Fischer <travis@transitivebullsh.it>"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+revchatgpt = "^0.0.33.5"
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+[experimental]
+new-installer = false

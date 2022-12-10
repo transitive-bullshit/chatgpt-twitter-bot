@@ -4,7 +4,7 @@ import { Client as TwitterClient, auth } from 'twitter-api-sdk'
 import { TwitterApi } from 'twitter-api-v2'
 
 import * as types from './types'
-import { ChatGPTAPIAccount, ChatGPTAPIPool } from './chatgpt-api-pool'
+import { ChatGPTAPIAccountInit, ChatGPTAPIPool } from './chatgpt-api-pool'
 import config, {
   defaultMaxNumMentionsToProcessPerBatch,
   twitterBotUserId
@@ -34,7 +34,7 @@ async function main() {
 
   const markdown = tweetMode === 'image' ? true : false
   const chatgptAccountsRaw = process.env.CHATGPT_ACCOUNTS
-  const chatgptAccounts: ChatGPTAPIAccount[] = chatgptAccountsRaw
+  const chatgptAccounts: ChatGPTAPIAccountInit[] = chatgptAccountsRaw
     ? JSON.parse(chatgptAccountsRaw)
     : null
 
@@ -45,9 +45,12 @@ async function main() {
       `Initializing ChatGPTAPIPool with ${chatgptAccounts.length} accounts`
     )
 
-    chatgpt = new ChatGPTAPIPool(chatgptAccounts, {
+    const chatgptApiPool = new ChatGPTAPIPool(chatgptAccounts, {
       markdown
     })
+
+    await chatgptApiPool.init()
+    chatgpt = chatgptApiPool
   } else {
     console.log(`Initializing a single instance of ChatGPTAPI`)
 
@@ -55,17 +58,12 @@ async function main() {
       sessionToken: process.env.SESSION_TOKEN!,
       markdown
     })
+
+    await chatgpt.ensureAuth()
   }
 
-  if (!noCache) {
-    await loadUserMentionCacheFromDiskByUserId({ userId: twitterBotUserId })
-  }
-
-  // for testing chatgpt
-  // await chatgpt.ensureAuth()
-  // const res = await chatgpt.sendMessage('this is a test')
-  // console.log(res)
-  // return
+  console.log()
+  await loadUserMentionCacheFromDiskByUserId({ userId: twitterBotUserId })
 
   const maxNumMentionsToProcess = isNaN(overrideMaxNumMentionsToProcess)
     ? defaultMaxNumMentionsToProcessPerBatch
@@ -131,8 +129,6 @@ async function main() {
   // console.log(await twitterApi.currentUser())
   // return
 
-  await chatgpt.ensureAuth()
-
   let interactions: types.ChatGPTInteraction[] = []
   let loopNum = 0
   let numErrors = 0
@@ -182,9 +178,7 @@ async function main() {
         interactions = interactions.concat(session.interactions)
       }
 
-      if (!noCache) {
-        await saveAllUserMentionCachesToDisk()
-      }
+      await saveAllUserMentionCachesToDisk()
 
       if (debugTweet) {
         break
@@ -263,6 +257,6 @@ main()
     process.exit(0)
   })
   .catch((err) => {
-    console.error('error', JSON.stringify(err, null, 2))
+    console.error('error', err)
     process.exit(1)
   })

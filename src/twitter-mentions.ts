@@ -13,7 +13,7 @@ import { maxTwitterId, tweetIdComparator } from './twitter'
  * NOTE: Twitter's API restricts the number of tweets we can fetch from their
  * API, so constantly fetching the same set of mentions over and over as we poll
  * for new mentions is both really inefficient and was going to quickly lead to
- * us going over Twitter's quotas.
+ * us going over Twitter's quota.
  *
  * So we're using a cache of Twitter mentions by User ID, stored in a sorted
  * B-Tree and persisted to disk.
@@ -165,6 +165,12 @@ export class TwitterUserMentionsCache {
   }
 }
 
+/**
+ * Fetches the latest mentions of the given `userId` on Twitter.
+ *
+ * NOTE: even with pagination, **only the 800 most recent Tweets can be retrieved**.
+ * @see https://developer.twitter.com/en/docs/twitter-api/tweets/timelines/api-reference/get-users-id-mentions
+ */
 export async function getTwitterUserIdMentions(
   userId: string,
   opts: types.TwitterUserIdMentionsQueryOptions,
@@ -195,7 +201,9 @@ export async function getTwitterUserIdMentions(
   }
 
   if (!noCache) {
-    const cachedResult = cache.getUserMentionsSince(originalSinceMentionId)
+    const cachedResult = cache.getUserMentionsSince(
+      originalSinceMentionId || '0'
+    )
 
     if (cachedResult) {
       result.mentions = result.mentions.concat(cachedResult.mentions)
@@ -207,10 +215,19 @@ export async function getTwitterUserIdMentions(
         ...cachedResult.tweets,
         ...result.tweets
       }
-      result.sinceMentionId = maxTwitterId(
-        result.sinceMentionId,
-        cachedResult.sinceMentionId
-      )
+
+      // TODO: fetching all mentions isn't working properly
+      if (
+        !cache.minTweetId ||
+        tweetIdComparator(result.sinceMentionId, cache.minTweetId) < 0
+      ) {
+        // sinceMentionId is before the first tweet in the cache
+      } else {
+        result.sinceMentionId = maxTwitterId(
+          result.sinceMentionId,
+          cachedResult.sinceMentionId
+        )
+      }
 
       console.log('twitter.tweets.userIdMentions CACHE HIT', {
         originalSinceMentionId,
@@ -224,12 +241,14 @@ export async function getTwitterUserIdMentions(
     }
   }
 
-  let lastSinceMentionId = result.sinceMentionId
+  // const isFullSearch = !originalSinceMentionId && resolveAllMentions
+  // let minSinceMentionId = originalSinceMentionId || result.mentions[0]?.id
 
   do {
     console.log('twitter.tweets.usersIdMentions', {
       sinceMentionId: result.sinceMentionId
     })
+
     const mentionsQuery = twitter.tweets.usersIdMentions(userId, {
       ...opts,
       since_id: result.sinceMentionId
@@ -266,15 +285,10 @@ export async function getTwitterUserIdMentions(
     }
 
     console.log({ numMentionsInQuery, numPagesInQuery })
-    if (
-      !numMentionsInQuery ||
-      !resolveAllMentions ||
-      result.sinceMentionId === lastSinceMentionId
-    ) {
+    if (numMentionsInQuery < 5 || !resolveAllMentions) {
       break
     }
 
-    lastSinceMentionId = result.sinceMentionId
     console.log('pausing for twitter...')
     await delay(6000)
   } while (true)

@@ -18,7 +18,7 @@ export const getTwitterUserMentionsCachePathForUserById = ({
   userId: string
 }) => path.join(cacheDir, `twitter-mentions-${userId}.json`)
 
-export const defaultMaxNumMentionsToProcessPerBatch = 12
+export const defaultMaxNumMentionsToProcessPerBatch = 10
 
 export const tweetIgnoreList = new Set(['1599344387401863174'])
 
@@ -27,7 +27,7 @@ export const priorityUsersList = new Set([
   '327034465', // transitive_bs
   '1235525929335689217', // LofiGrind (my test acct)
   '1598922281434103808', // ChatGPTBot,
-  '1019099485153030144' // Yaviendil
+  '1019099485153030144' // Yaviendil (TODO: temporary)
 ])
 
 export const languageAllowList = new Set([
