@@ -506,7 +506,7 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
 
   async removeAccountFromPool(accountId: string, { err }: { err?: Error }) {
     console.log(
-      `CHATGPT ERROR REMOVING chatgpt account ${accountId} from pool; unexpected error ${err.toString()}`
+      `CHATGPT ERROR REMOVING account ${accountId} from pool; unexpected error ${err.toString()}`
     )
 
     this._accounts = this._accounts.filter((a) => a.id !== accountId)
