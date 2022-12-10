@@ -3,7 +3,7 @@ import test from 'ava'
 import { generateSessionTokenForOpenAIAccount } from './openai-auth'
 
 const isCI = !!process.env.CI
-const isNoop = true
+const isNoop = false
 
 test('generateSessionTokenForOpenAIAccount', async (t) => {
   if (isCI) {
