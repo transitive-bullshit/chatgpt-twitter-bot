@@ -18,7 +18,9 @@
 
 ## Intro
 
-[@ChatGPTBot](https://twitter.com/ChatGPTBot) is a Twitter bot where you can @mention it with a prompt and it will respond with a twitter thread containing the [ChatGPT](https://github.com/transitive-bullshit/chatgpt-api) response.
+[@ChatGPTBot](https://twitter.com/ChatGPTBot) is a Twitter bot that you can @mention with a prompt, and it will respond with a twitter thread containing the [ChatGPT](https://github.com/transitive-bullshit/chatgpt-api) response.
+
+It uses the [chatgpt](https://github.com/transitive-bullshit/chatgpt-api) Node.js package under the hood.
 
 ## Usage
 

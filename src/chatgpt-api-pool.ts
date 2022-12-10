@@ -121,17 +121,20 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
 
   override async getIsAuthenticated() {
     const account = await this.getAPIAccountInstance()
+    console.log('getIsAuthenticated', account.id)
     return await account.api.getIsAuthenticated()
   }
 
   override async ensureAuth() {
     const account = await this.getAPIAccountInstance()
+    console.log('ensureAuth', account.id)
     return await account.api.ensureAuth()
   }
 
   override async refreshAccessToken() {
     const account = await this.getAPIAccountInstance()
-    return await account.api.ensureAuth()
+    console.log('refreshAccessToken', account.id)
+    return await account.api.refreshAccessToken()
   }
 
   override async sendMessage(

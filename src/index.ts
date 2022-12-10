@@ -259,6 +259,6 @@ main()
     process.exit(0)
   })
   .catch((err) => {
-    console.error('error', JSON.stringify(err, null, 2))
+    console.error('error', err)
     process.exit(1)
   })
