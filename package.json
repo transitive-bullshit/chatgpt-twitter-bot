@@ -45,6 +45,7 @@
     "keyv": "^4.5.2",
     "markdown-it": "^13.0.1",
     "p-map": "^5.5.0",
+    "p-memoize": "^7.1.1",
     "p-throttle": "^5.0.0",
     "p-timeout": "^6.0.0",
     "puppeteer-render-text": "^2.1.3",

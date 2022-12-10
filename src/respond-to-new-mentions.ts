@@ -298,6 +298,7 @@ export async function respondToNewMentions({
                   target: 'tweet'
                 })
 
+            console.log('twitter media', mediaId)
             const tweet = await createTweet(
               {
                 // text: '',
@@ -308,7 +309,7 @@ export async function respondToNewMentions({
                   in_reply_to_tweet_id: promptTweetId
                 }
               },
-              { twitter, dryRun }
+              { twitter, twitterV1, dryRun }
             )
 
             result.responseMediaId = mediaId
@@ -363,6 +364,7 @@ export async function respondToNewMentions({
                     },
                     {
                       twitter,
+                      twitterV1,
                       dryRun
                     }
                   )
@@ -410,6 +412,7 @@ export async function respondToNewMentions({
                     },
                     {
                       twitter,
+                      twitterV1,
                       dryRun
                     }
                   )
@@ -447,6 +450,7 @@ export async function respondToNewMentions({
                     },
                     {
                       twitter,
+                      twitterV1,
                       dryRun
                     }
                   )

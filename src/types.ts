@@ -1,10 +1,11 @@
 import { type Role } from 'chatgpt'
 import { type Client as TwitterClient } from 'twitter-api-sdk'
-import { type TwitterApiv1 } from 'twitter-api-v2'
+import { type DirectMessageCreateV1, type TwitterApiv1 } from 'twitter-api-v2'
 import { type AsyncReturnType } from 'type-fest'
 
 export { TwitterClient }
 export { TwitterApiv1 as TwitterClientV1 }
+export { DirectMessageCreateV1 as TwitterDMV1 }
 
 export interface Config {
   accessToken?: string
@@ -12,8 +13,11 @@ export interface Config {
   sinceMentionId?: string
 }
 
+export type ChatGPTInteractionType = 'tweet' | 'dm'
+
 export interface ChatGPTInteraction {
   role?: Role
+  type?: ChatGPTInteractionType
 
   prompt: string
   promptTweetId: string

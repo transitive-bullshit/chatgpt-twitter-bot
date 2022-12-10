@@ -1,4 +1,5 @@
 import pMap from 'p-map'
+import pMemoize from 'p-memoize'
 import pThrottle from 'p-throttle'
 
 import * as types from './types'
@@ -18,19 +19,21 @@ const throttle2 = pThrottle({
 export const createTweet = throttle1(throttle2(createTweetImpl))
 
 async function createTweetImpl(
-  args: Parameters<types.TwitterClient['tweets']['createTweet']>[0],
+  body: Parameters<types.TwitterClient['tweets']['createTweet']>[0],
   {
     twitter,
+    twitterV1,
     dryRun
   }: {
     twitter: types.TwitterClient
+    twitterV1?: types.TwitterClientV1
     dryRun?: boolean
   }
 ) {
   if (dryRun) return null
 
   try {
-    const res = await twitter.tweets.createTweet(args)
+    const res = await twitter.tweets.createTweet(body)
     const tweet = res?.data
 
     if (tweet?.id) {
@@ -64,6 +67,31 @@ async function createTweetImpl(
         throw error
       }
     } else if (err.status === 429) {
+      if (twitterV1) {
+        console.warn(
+          'twitter error 429: too many requests; falling back to v1 API'
+        )
+
+        try {
+          // TODO: no idea if this will actually work if the v2 API is already
+          // rate-limited, but it's worth a shot...
+          const tweetV1 = await twitterV1.tweet(body.text || '', {
+            in_reply_to_status_id: body.reply?.in_reply_to_tweet_id,
+            media_ids: body.media?.media_ids
+          })
+
+          return {
+            id: tweetV1.id_str,
+            text: tweetV1.text
+          }
+        } catch (err) {
+          console.warn(
+            'twitter warning; fallback to v1 createTweet after 429 error failed:',
+            err.toString()
+          )
+        }
+      }
+
       const error = new types.ChatError(
         `error creating tweet: too many requests`
       )
@@ -217,4 +245,27 @@ export async function createTwitterThreadForChatGPTResponse({
   ).filter(Boolean)
 
   return tweets
+}
+
+const getUserByIdThrottle = pThrottle({
+  limit: 1,
+  interval: 1000,
+  strict: true
+})
+
+export const getUserById = pMemoize(getUserByIdThrottle(getUserByIdImpl))
+
+async function getUserByIdImpl(
+  userId: string,
+  {
+    twitterV1
+  }: {
+    twitterV1: types.TwitterClientV1
+  }
+) {
+  // const { data: user } = await twitter.users.findUserById(userId)
+  // return user
+
+  const res = await twitterV1.users({ user_id: userId })
+  return res[0]
 }
