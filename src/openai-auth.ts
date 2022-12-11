@@ -1,5 +1,4 @@
 import { type ExecaReturnBase, execaCommand } from 'execa'
-import pTimeout from 'p-timeout'
 
 /**
  * Generates a fresh session token for an OpenAI account based on email +
@@ -20,18 +19,10 @@ export async function generateSessionTokenForOpenAIAccount({
 
   let res: ExecaReturnBase<string>
   try {
-    // res = await execaCommand(command, {
-    //   shell: true
-    // })
-
-    res = await pTimeout(
-      execaCommand(command, {
-        shell: true
-      }),
-      {
-        milliseconds: timeoutMs
-      }
-    )
+    res = await execaCommand(command, {
+      shell: true,
+      timeout: timeoutMs
+    })
   } catch (err: any) {
     const stderr: string = err.stderr?.toLowerCase()
     if (stderr?.includes('wrong email or password')) {

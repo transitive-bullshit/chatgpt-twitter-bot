@@ -472,7 +472,9 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
 
           if (account?.id && ++numRetries <= 1) {
             console.log(
-              `chatgpt account ${accountId} unexpected error ${err.toString()}; refreshing session`
+              `chatgpt account ${
+                account.id
+              } unexpected error ${err.toString()}; refreshing session`
             )
             if (await this.tryRefreshSessionTokenForAccount(account.id)) {
               continue
