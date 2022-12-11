@@ -309,7 +309,7 @@ export async function respondToNewMentions({
                   in_reply_to_tweet_id: promptTweetId
                 }
               },
-              { twitter, twitterV1, dryRun }
+              { twitter, dryRun }
             )
 
             result.responseMediaId = mediaId
@@ -364,7 +364,6 @@ export async function respondToNewMentions({
                     },
                     {
                       twitter,
-                      twitterV1,
                       dryRun
                     }
                   )
@@ -412,7 +411,6 @@ export async function respondToNewMentions({
                     },
                     {
                       twitter,
-                      twitterV1,
                       dryRun
                     }
                   )
@@ -450,7 +448,6 @@ export async function respondToNewMentions({
                     },
                     {
                       twitter,
-                      twitterV1,
                       dryRun
                     }
                   )

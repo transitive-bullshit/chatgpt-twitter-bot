@@ -4,6 +4,11 @@ import { dms } from './keyv'
 import { getPrompt } from './mentions'
 import { getUserById } from './twitter'
 
+/**
+ * NOTE: Twitter DMs are not currently support.
+ *
+ * Support was a WIP before being dropped to focus on other projects.
+ */
 export async function respondToDM(
   dm: types.TwitterDMV1,
   {

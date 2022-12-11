@@ -22,11 +22,9 @@ async function createTweetImpl(
   body: Parameters<types.TwitterClient['tweets']['createTweet']>[0],
   {
     twitter,
-    twitterV1,
     dryRun
   }: {
     twitter: types.TwitterClient
-    twitterV1?: types.TwitterClientV1
     dryRun?: boolean
   }
 ) {
@@ -67,31 +65,6 @@ async function createTweetImpl(
         throw error
       }
     } else if (err.status === 429) {
-      if (twitterV1) {
-        console.warn(
-          'twitter error 429: too many requests; falling back to v1 API'
-        )
-
-        try {
-          // TODO: no idea if this will actually work if the v2 API is already
-          // rate-limited, but it's worth a shot...
-          const tweetV1 = await twitterV1.tweet(body.text || '', {
-            in_reply_to_status_id: body.reply?.in_reply_to_tweet_id,
-            media_ids: body.media?.media_ids
-          })
-
-          return {
-            id: tweetV1.id_str,
-            text: tweetV1.text
-          }
-        } catch (err) {
-          console.warn(
-            'twitter warning; fallback to v1 createTweet after 429 error failed:',
-            err.toString()
-          )
-        }
-      }
-
       const error = new types.ChatError(
         `error creating tweet: too many requests`
       )
