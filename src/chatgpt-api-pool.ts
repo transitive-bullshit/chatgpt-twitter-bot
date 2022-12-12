@@ -1,10 +1,17 @@
+import fs from 'node:fs/promises'
+import path from 'node:path'
+
 import { ChatGPTAPI } from 'chatgpt'
 import delay from 'delay'
+import mkdir from 'mkdirp'
 import pMap from 'p-map'
 import QuickLRU from 'quick-lru'
 
+import { ChatGPTError } from '../../chatgpt-api/build'
+import { cacheDir } from './config'
 import { generateSessionTokenForOpenAIAccount } from './openai-auth'
 import { ChatError } from './types'
+import { omit } from './utils'
 
 type ChatGPTAPIInstance = InstanceType<typeof ChatGPTAPI>
 type ChatGPTAPISendMessageOptions = Parameters<
@@ -154,6 +161,8 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
       }),
       {}
     )
+
+    await this.storeAccountsToDisk()
   }
 
   get accounts(): ChatGPTAPIAccount[] {
@@ -280,6 +289,7 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
         sessionToken
       })
 
+      await this.storeAccountsToDisk()
       return true
     }
 
@@ -390,48 +400,77 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
           error.isFinal = false
           error.accountId = account.id
           throw error
-        } else if (
-          err.toString().toLowerCase() === 'error: chatgptapi error 429'
-        ) {
-          console.log('\nchatgpt rate limit', account.id, '\n')
-          this._accountsOnCooldown.set(account.id, true, {
-            maxAge: this._accountCooldownMs * 5
-          })
+        } else if (err instanceof ChatGPTError) {
+          if (err.statusCode === 429) {
+            console.log('\nchatgpt rate limit', account.id, '\n')
+            this._accountsOnCooldown.set(account.id, true, {
+              maxAge: this._accountCooldownMs * 5
+            })
 
-          const error = new ChatError(err.toString())
-          error.type = 'chatgpt:pool:rate-limit'
-          error.isFinal = false
-          error.accountId = account.id
-          throw error
-        } else if (
-          err.toString().toLowerCase() === 'error: chatgptapi error 503' ||
-          err.toString().toLowerCase() === 'error: chatgptapi error 502'
-        ) {
-          if (++numRetries <= 1) {
-            console.log(
-              `chatgpt account ${
-                account.id
-              } ${err.toString()}; refreshing session`
-            )
+            const error = new ChatError(err.toString())
+            error.type = 'chatgpt:pool:rate-limit'
+            error.isFinal = false
+            error.accountId = account.id
+            throw error
+          } else if (err.statusCode === 503 || err.statusCode === 502) {
+            if (++numRetries <= 1) {
+              console.log(
+                `chatgpt account ${
+                  account.id
+                } ${err.toString()}; refreshing session`
+              )
 
-            if (await this.tryRefreshSessionTokenForAccount(account.id)) {
-              continue
+              if (await this.tryRefreshSessionTokenForAccount(account.id)) {
+                continue
+              }
             }
+
+            this._accountsOnCooldown.set(account.id, true, {
+              maxAge: this._accountCooldownMs * 2
+            })
+
+            const error = new ChatError(err.toString())
+            error.type = 'chatgpt:pool:unavailable'
+            error.isFinal = true
+            error.accountId = account.id
+            throw error
+          } else if (err.statusCode === 500) {
+            console.error('UNEXPECTED CHATGPT ERROR', err)
+
+            if (++numRetries <= 1) {
+              console.log(
+                `chatgpt account ${
+                  account.id
+                } unexpected error ${err.toString()}; refreshing session`
+              )
+              if (await this.tryRefreshSessionTokenForAccount(account.id)) {
+                continue
+              }
+            }
+
+            this.removeAccountFromPool(account.id, { err })
+          } else {
+            console.error('UNEXPECTED CHATGPT ERROR', err)
+
+            if (++numRetries <= 1) {
+              console.log(
+                `chatgpt account ${
+                  account.id
+                } unexpected error ${err.toString()}; refreshing session`
+              )
+              if (await this.tryRefreshSessionTokenForAccount(account.id)) {
+                continue
+              }
+            }
+
+            this._accountsOnCooldown.set(account.id, true, {
+              maxAge: this._accountCooldownMs * 5
+            })
           }
-
-          this._accountsOnCooldown.set(account.id, true, {
-            maxAge: this._accountCooldownMs * 2
-          })
-
-          const error = new ChatError(err.toString())
-          error.type = 'chatgpt:pool:unavailable'
-          error.isFinal = true
-          error.accountId = account.id
-          throw error
         } else {
           console.error('UNEXPECTED CHATGPT ERROR', err)
 
-          if (++numRetries <= 1) {
+          if (account?.id && ++numRetries <= 1) {
             console.log(
               `chatgpt account ${
                 account.id
@@ -442,13 +481,38 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
             }
           }
 
-          this._accountsOnCooldown.set(account.id, true, {
-            maxAge: this._accountCooldownMs * 5
-          })
+          this.removeAccountFromPool(account?.id || accountId, { err })
         }
 
         throw err
       }
     } while (true)
+  }
+
+  async storeAccountsToDisk() {
+    // Store updated account details
+    await mkdir(cacheDir)
+    const accountsPath = path.join(cacheDir, 'accounts.json')
+    await fs.writeFile(
+      accountsPath,
+      JSON.stringify(
+        this._accounts.map((account) => omit(account, 'api')),
+        null,
+        2
+      ),
+      'utf-8'
+    )
+  }
+
+  async removeAccountFromPool(accountId: string, { err }: { err?: Error }) {
+    console.log(
+      `CHATGPT ERROR REMOVING account ${accountId} from pool; unexpected error ${err.toString()}`
+    )
+
+    this._accounts = this._accounts.filter((a) => a.id !== accountId)
+    delete this._accountsMap[accountId]
+    this._accountOffset = this._accountOffset % this._accounts.length
+
+    await this.storeAccountsToDisk()
   }
 }

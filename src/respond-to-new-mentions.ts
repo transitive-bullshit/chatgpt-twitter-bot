@@ -298,6 +298,7 @@ export async function respondToNewMentions({
                   target: 'tweet'
                 })
 
+            console.log('twitter media', mediaId)
             const tweet = await createTweet(
               {
                 // text: '',

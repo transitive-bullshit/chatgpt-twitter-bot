@@ -209,6 +209,8 @@ export async function populateTweetMentionsBatch({
       ids: ids
     })
 
+    // console.log('debugTweet', JSON.stringify(res, null, 2))
+
     batch.mentions = batch.mentions.concat(res.data)
 
     if (res.includes?.users?.length) {

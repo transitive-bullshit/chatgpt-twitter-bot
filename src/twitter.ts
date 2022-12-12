@@ -1,4 +1,5 @@
 import pMap from 'p-map'
+import pMemoize from 'p-memoize'
 import pThrottle from 'p-throttle'
 
 import * as types from './types'
@@ -18,7 +19,7 @@ const throttle2 = pThrottle({
 export const createTweet = throttle1(throttle2(createTweetImpl))
 
 async function createTweetImpl(
-  args: Parameters<types.TwitterClient['tweets']['createTweet']>[0],
+  body: Parameters<types.TwitterClient['tweets']['createTweet']>[0],
   {
     twitter,
     dryRun
@@ -30,7 +31,7 @@ async function createTweetImpl(
   if (dryRun) return null
 
   try {
-    const res = await twitter.tweets.createTweet(args)
+    const res = await twitter.tweets.createTweet(body)
     const tweet = res?.data
 
     if (tweet?.id) {
@@ -217,4 +218,27 @@ export async function createTwitterThreadForChatGPTResponse({
   ).filter(Boolean)
 
   return tweets
+}
+
+const getUserByIdThrottle = pThrottle({
+  limit: 1,
+  interval: 1000,
+  strict: true
+})
+
+export const getUserById = pMemoize(getUserByIdThrottle(getUserByIdImpl))
+
+async function getUserByIdImpl(
+  userId: string,
+  {
+    twitterV1
+  }: {
+    twitterV1: types.TwitterClientV1
+  }
+) {
+  // const { data: user } = await twitter.users.findUserById(userId)
+  // return user
+
+  const res = await twitterV1.users({ user_id: userId })
+  return res[0]
 }

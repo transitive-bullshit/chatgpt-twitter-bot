@@ -7,10 +7,12 @@ import { type ExecaReturnBase, execaCommand } from 'execa'
  */
 export async function generateSessionTokenForOpenAIAccount({
   email,
-  password
+  password,
+  timeoutMs = 2 * 60 * 1000
 }: {
   email: string
   password: string
+  timeoutMs?: number
 }): Promise<string> {
   const command = `poetry run python3 bin/openai-auth.py ${email} ${password}`
   console.log(command)
@@ -18,7 +20,8 @@ export async function generateSessionTokenForOpenAIAccount({
   let res: ExecaReturnBase<string>
   try {
     res = await execaCommand(command, {
-      shell: true
+      shell: true,
+      timeout: timeoutMs
     })
   } catch (err: any) {
     const stderr: string = err.stderr?.toLowerCase()
@@ -29,8 +32,13 @@ export async function generateSessionTokenForOpenAIAccount({
     }
   }
 
-  console.log('stdout', res.stdout)
-  console.error('stderr', res.stderr)
+  if (res.stdout?.trim()) {
+    console.log('stdout', res.stdout)
+  }
+
+  if (res.stderr?.trim()) {
+    console.error('stderr', res.stderr)
+  }
 
   if (res.exitCode !== 0) {
     console.error(res.stderr)

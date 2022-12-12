@@ -93,6 +93,8 @@ export const redisHost = process.env.REDIS_HOST
 export const redisPassword = process.env.REDIS_PASSWORD
 export const redisUser = process.env.REDIS_USER || 'default'
 export const redisNamespace = process.env.REDIS_NAMESPACE || 'chatgpt'
+export const redisNamespaceDMs =
+  process.env.REDIS_NAMESPACE_DMS || 'chatgpt-dms'
 export const redisUrl =
   process.env.REDIS_URL || `redis://${redisUser}:${redisPassword}@${redisHost}`
 

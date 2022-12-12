@@ -125,6 +125,21 @@ async function main() {
     throw new Error('twitter error unable to fetch current user')
   }
 
+  // twitterApi.v1.listDmEvents
+  // const res = await twitterApi.v1.rateLimitStatuses(
+  //   'statuses',
+  //   'friends',
+  //   'trends',
+  //   'help',
+  //   'direct_messages',
+  //   'application',
+  //   'account',
+  //   'users',
+  //   'account_activity'
+  // )
+  // console.log(JSON.stringify(res, null, 2))
+  // return
+
   // console.log(user)
   // console.log(await twitterApi.currentUser())
   // return
