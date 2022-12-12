@@ -112,11 +112,11 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
             }
 
             if (!api && accountInit.email && accountInit.password) {
+              // TODO: temporary
               const sessionToken = await generateSessionTokenForOpenAIAccount({
                 email: accountInit.email,
                 password: accountInit.password
               })
-
               api = new ChatGPTAPI({
                 ...this._chatgptapiOptions,
                 sessionToken
@@ -278,6 +278,7 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
     }
 
     if (account.email && account.password) {
+      // TODO: temporary until we circumvent cloudflare's protections...
       const sessionToken = await generateSessionTokenForOpenAIAccount({
         email: account.email,
         password: account.password

@@ -1,3 +1,4 @@
+import { chatgptToken } from 'chatgpt-token'
 import { type ExecaReturnBase, execaCommand } from 'execa'
 
 /**
@@ -5,7 +6,7 @@ import { type ExecaReturnBase, execaCommand } from 'execa'
  * password. Under the hood, it uses a Python TLS-based solution to bypass
  * OpenAI and Auth0's authentication protections.
  */
-export async function generateSessionTokenForOpenAIAccount({
+export async function generateSessionTokenForOpenAIAccountTLS({
   email,
   password,
   timeoutMs = 2 * 60 * 1000
@@ -56,4 +57,25 @@ export async function generateSessionTokenForOpenAIAccount({
   }
 
   return sessionToken
+}
+
+/**
+ * Generates a fresh session token for an OpenAI account based on email +
+ * password.
+ */
+export async function generateSessionTokenForOpenAIAccount({
+  email,
+  password
+}: // timeoutMs = 2 * 60 * 1000 // TODO
+{
+  email: string
+  password: string
+  timeoutMs?: number
+}): Promise<string> {
+  console.log('generateSessionTokenForOpenAIAccount', email)
+  const token = await chatgptToken(email, password)
+  if (!token) {
+    throw new Error(`returned empty session token for OpenAI account ${email}`)
+  }
+  return token
 }
