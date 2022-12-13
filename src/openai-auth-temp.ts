@@ -7,8 +7,8 @@ import './config'
  * TODO
  */
 async function main() {
-  const email = 'fisch09202+8@gmail.com'
-  const password = 'MTFkNTI3OWMyMzRjOWY5YWFlNGNiYzk1'
+  const email = ''
+  const password = ''
   const authInfo = await getOpenAIAuth({
     email,
     password
