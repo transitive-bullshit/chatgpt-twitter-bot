@@ -40,6 +40,11 @@ export async function getChatGPTResponse(
     if (res.message?.id) {
       messageId = res.message.id
     }
+
+    const partialResponse = res.message?.content?.parts?.[0]
+    if (partialResponse) {
+      response = partialResponse
+    }
   }
 
   do {
@@ -75,8 +80,20 @@ export async function getChatGPTResponse(
     } catch (err: any) {
       console.error('ChatGPT error', {
         prompt,
-        error: err
+        error: err,
+        response,
+        conversationId,
+        messageId
       })
+
+      if (
+        (response &&
+          err.toString().toLowerCase() === 'error: typeerror: terminated') ||
+        err.toString().toLowerCase() === 'typeerror: terminated'
+      ) {
+        console.warn('using potentially partial response')
+        break
+      }
 
       if (
         (err.toString().toLowerCase() === 'error: chatgptapi error 404' ||

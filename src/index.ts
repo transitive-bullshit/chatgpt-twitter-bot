@@ -1,4 +1,4 @@
-import { ChatGPTAPI } from 'chatgpt'
+import { ChatGPTAPI, getOpenAIAuth } from 'chatgpt'
 import delay from 'delay'
 import { Client as TwitterClient, auth } from 'twitter-api-sdk'
 import { TwitterApi } from 'twitter-api-v2'
@@ -46,6 +46,8 @@ async function main() {
     )
 
     const chatgptApiPool = new ChatGPTAPIPool(chatgptAccounts, {
+      userAgent:
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36',
       markdown
     })
 
@@ -54,8 +56,17 @@ async function main() {
   } else {
     console.log(`Initializing a single instance of ChatGPTAPI`)
 
+    const authInfo = await getOpenAIAuth({
+      email: process.env.OPENAI_EMAIL,
+      password: process.env.OPENAI_PASSWORD
+    })
+
     chatgpt = new ChatGPTAPI({
-      sessionToken: process.env.SESSION_TOKEN!,
+      ...authInfo,
+      // sessionToken: process.env.SESSION_TOKEN!,
+      // clearanceToken: process.env.CLEARANCE_TOKEN!,
+      // userAgent:
+      // 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36',
       markdown
     })
 

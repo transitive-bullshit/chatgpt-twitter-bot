@@ -1,83 +1,113 @@
 import delay from 'delay'
-import { type Browser } from 'puppeteer'
-import { executablePath } from 'puppeteer'
+import {
+  type Browser,
+  type Page,
+  type Protocol,
+  type PuppeteerLaunchOptions
+} from 'puppeteer'
 import puppeteer from 'puppeteer-extra'
 import StealthPlugin from 'puppeteer-extra-plugin-stealth'
 
 puppeteer.use(StealthPlugin())
 
-const headers = {
-  'user-agent':
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36'
+export type OpenAIAuthInfo = {
+  userAgent: string
+  clearanceToken: string
+  sessionToken: string
+  cookies?: Record<string, Protocol.Network.Cookie>
 }
 
 /**
- * Generates a fresh session token for an OpenAI account based on email +
- * password.
+ * Bypasses OpenAI's use of Cloudflare to get the cookies required to use
+ * ChatGPT. Uses Puppeteer with a stealth plugin under the hood.
  */
-export async function getSessionTokenForOpenAIAccountUsingPuppeteer({
+export async function getOpenAIAuthInfo({
   email,
-  password
-}: // timeoutMs = 2 * 60 * 1000 // TODO
-{
+  password,
+  timeout = 2 * 60 * 1000,
+  browser
+}: {
   email: string
   password: string
-  timeoutMs?: number
-}): Promise<string> {
-  console.log('getSessionTokenForOpenAIAccount', email)
-  let token: string
-  let browser: Browser
+  timeout?: number
+  browser?: Browser
+}): Promise<OpenAIAuthInfo> {
+  let page: Page
+  let origBrowser = browser
 
   try {
-    browser = await puppeteer.launch({
-      headless: false,
-      args: ['--no-sandbox'],
-      ignoreHTTPSErrors: true,
-      executablePath: executablePath()
-    })
-    // const context = await browser.createIncognitoBrowserContext()
-    const page = await browser.newPage()
+    if (!browser) {
+      browser = await getBrowser()
+    }
 
-    await page.setExtraHTTPHeaders(headers)
-    await page.setDefaultTimeout(10 * 60 * 1000)
+    const userAgent = await browser.userAgent()
+    page = (await browser.pages())[0] || (await browser.newPage())
+    page.setDefaultTimeout(timeout)
+
     await page.goto('https://chat.openai.com/auth/login')
+    await page.waitForSelector('#__next .btn-primary', { timeout })
+    await delay(1000)
 
-    await page.waitForSelector('button:nth-child(1)')
-    await page.click('button:nth-child(1)')
+    if (email && password) {
+      await Promise.all([
+        page.click('#__next .btn-primary'),
+        page.waitForNavigation({
+          waitUntil: 'networkidle0'
+        })
+      ])
+      await page.type('#username', email, { delay: 10 })
+      await page.click('button[type="submit"]')
+      await page.waitForSelector('#password')
+      await page.type('#password', password, { delay: 10 })
+      await Promise.all([
+        page.click('button[type="submit"]'),
+        page.waitForNavigation({
+          waitUntil: 'networkidle0'
+        })
+      ])
+    }
 
-    await page.waitForSelector('h1')
+    const pageCookies = await page.cookies()
+    const cookies = pageCookies.reduce(
+      (map, cookie) => ({ ...map, [cookie.name]: cookie }),
+      {}
+    )
 
-    await page.type('#username', email, { delay: 50 })
-    await page.click('button[type="submit"]')
+    const authInfo: OpenAIAuthInfo = {
+      userAgent,
+      clearanceToken: cookies['cf_clearance']?.value,
+      sessionToken: cookies['__Secure-next-auth.session-token']?.value,
+      cookies
+    }
 
-    await page.waitForSelector('#password')
-    await page.waitForSelector('button[type="submit"]')
-    await page.waitForSelector('h1')
-
-    await page.type('#password', password, { delay: 50 })
-
-    await page.click('button[type="submit"]')
-
-    // 'https://chat.openai.com/chat'
-    await page.waitForNavigation({ timeout: 10000 })
-    const cookies = await page.cookies('https://chat.openai.com')
-    console.log(cookies)
-    // const cookies = (await context.storageState()).cookies
-
-    // const sessionTokenItem = cookies.find(
-    //   (item) => item.name == '__Secure-next-auth.session-token'
-    // )
-
-    // token = sessionTokenItem.value
+    return authInfo
   } catch (err) {
-    console.error(err, { email })
-    await delay(100000)
+    console.error(err)
+    throw null
   } finally {
-    await browser.close()
-  }
+    if (origBrowser) {
+      if (page) {
+        await page.close()
+      }
+    } else if (browser) {
+      await browser.close()
+    }
 
-  if (!token) {
-    throw new Error(`returned empty session token for OpenAI account ${email}`)
+    page = null
+    browser = null
   }
-  return token
+}
+
+export async function getBrowser(launchOptions?: PuppeteerLaunchOptions) {
+  const macChromePath =
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+
+  return puppeteer.launch({
+    headless: false,
+    args: ['--no-sandbox', '--exclude-switches', 'enable-automation'],
+    ignoreHTTPSErrors: true,
+    // executablePath: executablePath()
+    executablePath: macChromePath,
+    ...launchOptions
+  })
 }

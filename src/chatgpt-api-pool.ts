@@ -19,7 +19,7 @@ type ChatGPTAPISendMessageOptions = Parameters<
 >[1]
 type ChatGPTAPIInstanceOptions = Omit<
   ConstructorParameters<typeof ChatGPTAPI>[0],
-  'sessionToken'
+  'sessionToken' | 'clearanceToken'
 >
 
 export interface ChatGPTAPIAccountInit {
@@ -28,6 +28,7 @@ export interface ChatGPTAPIAccountInit {
   email?: string
   password?: string
   sessionToken?: string
+  clearanceToken?: string
 }
 
 interface ChatGPTAPIAccount extends ChatGPTAPIAccountInit {
@@ -67,7 +68,8 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
 
     super({
       ...initOptions,
-      sessionToken: accounts[0].sessionToken
+      sessionToken: accounts[0].sessionToken,
+      clearanceToken: accounts[0].clearanceToken
     })
 
     this._chatgptapiOptions = initOptions
@@ -97,7 +99,8 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
             if (accountInit.sessionToken) {
               api = new ChatGPTAPI({
                 ...this._chatgptapiOptions,
-                sessionToken: accountInit.sessionToken
+                sessionToken: accountInit.sessionToken,
+                clearanceToken: accountInit.clearanceToken
               })
 
               try {
@@ -113,14 +116,15 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
 
             if (!api && accountInit.email && accountInit.password) {
               // TODO: temporary
-              const sessionToken = await generateSessionTokenForOpenAIAccount({
-                email: accountInit.email,
-                password: accountInit.password
-              })
-              api = new ChatGPTAPI({
-                ...this._chatgptapiOptions,
-                sessionToken
-              })
+              // const sessionToken = await generateSessionTokenForOpenAIAccount({
+              //   email: accountInit.email,
+              //   password: accountInit.password
+              // })
+              // api = new ChatGPTAPI({
+              //   ...this._chatgptapiOptions,
+              //   sessionToken,
+              //   clearanceToken: accountInit.clearanceToken
+              // })
             }
 
             if (!api) {
@@ -279,19 +283,17 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
 
     if (account.email && account.password) {
       // TODO: temporary until we circumvent cloudflare's protections...
-      const sessionToken = await generateSessionTokenForOpenAIAccount({
-        email: account.email,
-        password: account.password
-      })
-
-      account.sessionToken = sessionToken
-      account.api = new ChatGPTAPI({
-        ...this._chatgptapiOptions,
-        sessionToken
-      })
-
-      await this.storeAccountsToDisk()
-      return true
+      // const sessionToken = await generateSessionTokenForOpenAIAccount({
+      //   email: account.email,
+      //   password: account.password
+      // })
+      // account.sessionToken = sessionToken
+      // account.api = new ChatGPTAPI({
+      //   ...this._chatgptapiOptions,
+      //   sessionToken
+      // })
+      // await this.storeAccountsToDisk()
+      // return true
     }
 
     return false
