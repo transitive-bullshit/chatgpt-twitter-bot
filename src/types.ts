@@ -115,6 +115,7 @@ export type ChatErrorType =
   | 'chatgpt:pool:rate-limit'
   | 'chatgpt:pool:unavailable'
   | 'chatgpt:pool:account-not-found'
+  | 'chatgpt:pool:account-on-cooldown'
 
 export class ChatError extends Error {
   isFinal: boolean = false

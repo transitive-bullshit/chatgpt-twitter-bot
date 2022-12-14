@@ -34,8 +34,9 @@
     "test:prettier": "prettier '**/*.{js,jsx,ts,tsx}' --check"
   },
   "dependencies": {
-    "@keyv/redis": "^2.5.3",
-    "chatgpt": "2.0.6",
+    "@keyv/redis": "^2.5.4",
+    "chatgpt": "2.1.0",
+    "chatgpt-token": "^0.0.1",
     "conf": "^10.2.0",
     "dotenv-safe": "^8.2.0",
     "execa": "^6.1.0",
@@ -48,6 +49,12 @@
     "p-memoize": "^7.1.1",
     "p-throttle": "^5.0.0",
     "p-timeout": "^6.0.0",
+    "playwright": "^1.28.1",
+    "puppeteer": "^19.4.0",
+    "puppeteer-core": "^19.4.0",
+    "puppeteer-extra": "^3.3.4",
+    "puppeteer-extra-plugin-recaptcha": "^3.6.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.1",
     "puppeteer-render-text": "^2.1.3",
     "quick-lru": "^6.1.1",
     "random": "^4.1.0",
@@ -56,29 +63,31 @@
     "tempy": "^3.0.0",
     "twitter-api-sdk": "^1.2.1",
     "twitter-api-v2": "^1.12.9",
+    "undici": "^5.14.0",
     "url-regex": "^5.0.0",
     "wink-eng-lite-web-model": "^1.4.3",
-    "wink-nlp": "^1.12.3"
+    "wink-nlp": "^1.13.0"
   },
   "devDependencies": {
     "@trivago/prettier-plugin-sort-imports": "^4.0.0",
-    "@types/node": "^18.11.10",
+    "@types/express": "^4.17.14",
+    "@types/node": "^18.11.13",
     "@types/rmfr": "^2.0.1",
     "ava": "^5.1.0",
     "del-cli": "^5.0.0",
     "delay": "^5.0.0",
     "husky": "^8.0.2",
-    "lint-staged": "^13.0.4",
+    "lint-staged": "^13.1.0",
     "mkdirp": "^1.0.4",
     "npm-run-all": "^4.1.5",
     "ora": "^6.1.2",
-    "prettier": "^2.8.0",
+    "prettier": "^2.8.1",
     "tsup": "^6.5.0",
     "tsx": "^3.12.1",
     "type-fest": "^3.3.0",
-    "typedoc": "^0.23.21",
+    "typedoc": "^0.23.22",
     "typedoc-plugin-markdown": "^3.14.0",
-    "typescript": "^4.9.3"
+    "typescript": "^4.9.4"
   },
   "lint-staged": {
     "*.{ts,tsx}": [

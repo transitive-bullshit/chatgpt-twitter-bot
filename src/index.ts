@@ -1,4 +1,4 @@
-import { ChatGPTAPI } from 'chatgpt'
+import { ChatGPTAPI, getOpenAIAuth } from 'chatgpt'
 import delay from 'delay'
 import { Client as TwitterClient, auth } from 'twitter-api-sdk'
 import { TwitterApi } from 'twitter-api-v2'
@@ -31,47 +31,6 @@ async function main() {
     process.env.MAX_NUM_MENTIONS_TO_PROCESS,
     10
   )
-
-  const markdown = tweetMode === 'image' ? true : false
-  const chatgptAccountsRaw = process.env.CHATGPT_ACCOUNTS
-  const chatgptAccounts: ChatGPTAPIAccountInit[] = chatgptAccountsRaw
-    ? JSON.parse(chatgptAccountsRaw)
-    : null
-
-  let chatgpt: ChatGPTAPI
-
-  if (chatgptAccounts?.length) {
-    console.log(
-      `Initializing ChatGPTAPIPool with ${chatgptAccounts.length} accounts`
-    )
-
-    const chatgptApiPool = new ChatGPTAPIPool(chatgptAccounts, {
-      markdown
-    })
-
-    await chatgptApiPool.init()
-    chatgpt = chatgptApiPool
-  } else {
-    console.log(`Initializing a single instance of ChatGPTAPI`)
-
-    chatgpt = new ChatGPTAPI({
-      sessionToken: process.env.SESSION_TOKEN!,
-      markdown
-    })
-
-    await chatgpt.ensureAuth()
-  }
-
-  console.log()
-  await loadUserMentionCacheFromDiskByUserId({ userId: twitterBotUserId })
-
-  const maxNumMentionsToProcess = isNaN(overrideMaxNumMentionsToProcess)
-    ? defaultMaxNumMentionsToProcessPerBatch
-    : overrideMaxNumMentionsToProcess
-
-  let sinceMentionId = resolveAllMentions
-    ? undefined
-    : defaultSinceMentionId || config.get('sinceMentionId')
 
   const refreshToken = defaultRefreshToken || config.get('refreshToken')
   // const accessToken = undefined // config.get('accessToken')
@@ -124,6 +83,58 @@ async function main() {
   if (!user?.id) {
     throw new Error('twitter error unable to fetch current user')
   }
+
+  const markdown = tweetMode === 'image' ? true : false
+  const chatgptAccountsRaw = process.env.CHATGPT_ACCOUNTS
+  const chatgptAccounts: ChatGPTAPIAccountInit[] = chatgptAccountsRaw
+    ? JSON.parse(chatgptAccountsRaw)
+    : null
+
+  let chatgpt: ChatGPTAPI
+
+  if (chatgptAccounts?.length) {
+    console.log(
+      `Initializing ChatGPTAPIPool with ${chatgptAccounts.length} accounts`
+    )
+
+    const chatgptApiPool = new ChatGPTAPIPool(chatgptAccounts, {
+      userAgent:
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36',
+      markdown
+    })
+
+    await chatgptApiPool.init()
+    chatgpt = chatgptApiPool
+  } else {
+    console.log(`Initializing a single instance of ChatGPTAPI`)
+
+    const authInfo = await getOpenAIAuth({
+      email: process.env.OPENAI_EMAIL,
+      password: process.env.OPENAI_PASSWORD
+    })
+
+    chatgpt = new ChatGPTAPI({
+      ...authInfo,
+      // sessionToken: process.env.SESSION_TOKEN!,
+      // clearanceToken: process.env.CLEARANCE_TOKEN!,
+      // userAgent:
+      // 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36',
+      markdown
+    })
+
+    await chatgpt.ensureAuth()
+  }
+
+  console.log()
+  await loadUserMentionCacheFromDiskByUserId({ userId: twitterBotUserId })
+
+  const maxNumMentionsToProcess = isNaN(overrideMaxNumMentionsToProcess)
+    ? defaultMaxNumMentionsToProcessPerBatch
+    : overrideMaxNumMentionsToProcess
+
+  let sinceMentionId = resolveAllMentions
+    ? undefined
+    : defaultSinceMentionId || config.get('sinceMentionId')
 
   // twitterApi.v1.listDmEvents
   // const res = await twitterApi.v1.rateLimitStatuses(

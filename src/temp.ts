@@ -6,8 +6,9 @@ import { loadUserMentionCacheFromDiskByUserId } from './twitter-mentions'
 async function main() {
   await loadUserMentionCacheFromDiskByUserId({ userId: twitterBotUserId })
 
-  // const refreshToken = process.env.TWITTER_OAUTH_REFRESH_TOKEN || config.get('refreshToken')
-  const refreshToken = config.get('refreshToken')
+  const refreshToken =
+    process.env.TWITTER_OAUTH_REFRESH_TOKEN || config.get('refreshToken')
+  // const refreshToken = config.get('refreshToken')
   const authToken = refreshToken ? { refresh_token: refreshToken } : undefined
   const authClient = new auth.OAuth2User({
     client_id: process.env.TWITTER_CLIENT_ID,
@@ -21,6 +22,7 @@ async function main() {
     console.log('refreshing twitter access token')
     const { token } = await authClient.refreshAccessToken()
     config.set('refreshToken', token.refresh_token)
+    console.log('twitter access token', token)
     return token
   }
 

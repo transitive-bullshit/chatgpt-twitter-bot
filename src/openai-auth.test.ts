@@ -1,15 +1,15 @@
 import test from 'ava'
 import { TimeoutError } from 'p-timeout'
 
-import { generateSessionTokenForOpenAIAccount } from './openai-auth'
+import { generateSessionTokenForOpenAIAccountTLS } from './openai-auth'
 
 const isCI = !!process.env.CI
 
-test('generateSessionTokenForOpenAIAccount', async (t) => {
+test('generateSessionTokenForOpenAIAccountTLS', async (t) => {
   if (isCI) {
     await t.throwsAsync(
       async () => {
-        await generateSessionTokenForOpenAIAccount({
+        await generateSessionTokenForOpenAIAccountTLS({
           email: 'foo@example.com',
           password: 'bar'
         })
@@ -21,7 +21,7 @@ test('generateSessionTokenForOpenAIAccount', async (t) => {
 
     await t.throwsAsync(
       async () => {
-        await generateSessionTokenForOpenAIAccount({
+        await generateSessionTokenForOpenAIAccountTLS({
           email: 'foo@example.com',
           password: 'bar',
           timeoutMs: 1
