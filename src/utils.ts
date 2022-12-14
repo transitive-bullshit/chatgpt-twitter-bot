@@ -97,7 +97,8 @@ export async function getChatGPTResponse(
 
       if (
         (err.toString().toLowerCase() === 'error: chatgptapi error 404' ||
-          err.type === 'chatgpt:pool:account-not-found') &&
+          err.type === 'chatgpt:pool:account-not-found' ||
+          err.statusCode === 404) &&
         origConversationId
       ) {
         // This can happen if we're accidentally trying to use a different

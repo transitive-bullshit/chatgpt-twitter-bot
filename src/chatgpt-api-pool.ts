@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
-import { ChatGPTAPI } from 'chatgpt'
+import { ChatGPTAPI, getOpenAIAuth } from 'chatgpt'
 import delay from 'delay'
 import mkdir from 'mkdirp'
 import pMap from 'p-map'
@@ -9,7 +9,6 @@ import QuickLRU from 'quick-lru'
 
 import { ChatGPTError } from '../../chatgpt-api/build'
 import { cacheDir } from './config'
-import { generateSessionTokenForOpenAIAccount } from './openai-auth'
 import { ChatError } from './types'
 import { omit } from './utils'
 
@@ -23,12 +22,8 @@ type ChatGPTAPIInstanceOptions = Omit<
 >
 
 export interface ChatGPTAPIAccountInit {
-  // must pass either email and pasword OR sessionToken
-  // (passing all three is preferred)
-  email?: string
-  password?: string
-  sessionToken?: string
-  clearanceToken?: string
+  email: string
+  password: string
 }
 
 interface ChatGPTAPIAccount extends ChatGPTAPIAccountInit {
@@ -68,8 +63,8 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
 
     super({
       ...initOptions,
-      sessionToken: accounts[0].sessionToken,
-      clearanceToken: accounts[0].clearanceToken
+      sessionToken: 'invalid',
+      clearanceToken: 'invalid'
     })
 
     this._chatgptapiOptions = initOptions
@@ -96,35 +91,25 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
           const accountId = accountInit.email || `account-${index}`
 
           try {
-            if (accountInit.sessionToken) {
-              api = new ChatGPTAPI({
-                ...this._chatgptapiOptions,
-                sessionToken: accountInit.sessionToken,
-                clearanceToken: accountInit.clearanceToken
-              })
-
-              try {
-                await api.ensureAuth()
-              } catch (err) {
-                console.warn(
-                  `ChatGPTAPIPool invalid session token for account "${accountId}"`,
-                  err.toString()
-                )
-                api = null
-              }
+            if (!accountInit.email || !accountInit.password) {
+              console.error('invalid chatgpt account', accountInit)
+              return null
             }
 
-            if (!api && accountInit.email && accountInit.password) {
-              // TODO: temporary
-              // const sessionToken = await generateSessionTokenForOpenAIAccount({
-              //   email: accountInit.email,
-              //   password: accountInit.password
-              // })
-              // api = new ChatGPTAPI({
-              //   ...this._chatgptapiOptions,
-              //   sessionToken,
-              //   clearanceToken: accountInit.clearanceToken
-              // })
+            const authInfo = await getOpenAIAuth(accountInit)
+            api = new ChatGPTAPI({
+              ...authInfo,
+              ...this._chatgptapiOptions
+            })
+
+            try {
+              await api.ensureAuth()
+            } catch (err) {
+              console.warn(
+                `ChatGPTAPIPool invalid session token for account "${accountId}"`,
+                err.toString()
+              )
+              api = null
             }
 
             if (!api) {
@@ -212,14 +197,24 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
     }
 
     console.log(`ChatGPT account ${account.id} is on cooldown; sleeping...`)
+    let numTries = 0
 
     do {
       await delay(1000)
+      ++numTries
 
       if (!this._accountsOnCooldown.has(account.id)) {
         return account
       }
-    } while (true)
+    } while (numTries < 10)
+
+    const error = new ChatError(
+      `ChatGPTAPIPool account on cooldown "${accountId}"`
+    )
+    error.type = 'chatgpt:pool:account-on-cooldown'
+    error.isFinal = false
+    error.accountId = accountId
+    throw error
   }
 
   override async getIsAuthenticated() {
@@ -236,7 +231,7 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
       return await account.api.ensureAuth()
     } catch (err) {
       if (account.email && account.password) {
-        if (await this.tryRefreshSessionTokenForAccount(account.id)) {
+        if (await this.tryRefreshSessionForAccount(account.id)) {
           return await account.api.ensureAuth()
         }
       }
@@ -253,7 +248,7 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
       return await account.api.refreshAccessToken()
     } catch (err) {
       if (account.email && account.password) {
-        if (await this.tryRefreshSessionTokenForAccount(account.id)) {
+        if (await this.tryRefreshSessionForAccount(account.id)) {
           return await account.api.refreshAccessToken()
         }
       }
@@ -268,7 +263,7 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
    *
    * @returns `true` if successful, `false` otherwise
    */
-  async tryRefreshSessionTokenForAccount(accountId: string) {
+  async tryRefreshSessionForAccount(accountId: string) {
     const account = this.accountsMap[accountId]
 
     if (!account) {
@@ -282,18 +277,13 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
     }
 
     if (account.email && account.password) {
-      // TODO: temporary until we circumvent cloudflare's protections...
-      // const sessionToken = await generateSessionTokenForOpenAIAccount({
-      //   email: account.email,
-      //   password: account.password
-      // })
-      // account.sessionToken = sessionToken
-      // account.api = new ChatGPTAPI({
-      //   ...this._chatgptapiOptions,
-      //   sessionToken
-      // })
-      // await this.storeAccountsToDisk()
-      // return true
+      const authInfo = await getOpenAIAuth(account)
+      account.api = new ChatGPTAPI({
+        ...this._chatgptapiOptions,
+        ...authInfo
+      })
+      await this.storeAccountsToDisk()
+      return true
     }
 
     return false
@@ -325,7 +315,10 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
             // If there is no account specified, but the request is part of an existing
             // conversation, then use the default account which handled all conversations
             // before we added support for multiple accounts.
-            accountId = this.accounts[0].id
+            accountId =
+              this.accounts.find(
+                (account) => account.id === 'fisch09202+8@gmail.com'
+              )?.id || this.accounts[0].id
           }
 
           if (accountId) {
@@ -371,7 +364,7 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
               response
             )
 
-            if (await this.tryRefreshSessionTokenForAccount(account.id)) {
+            if (await this.tryRefreshSessionForAccount(account.id)) {
               continue
             }
           }
@@ -390,7 +383,7 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
               `chatgpt account ${account.id} timeout; refreshing session`
             )
 
-            if (await this.tryRefreshSessionTokenForAccount(account.id)) {
+            if (await this.tryRefreshSessionForAccount(account.id)) {
               continue
             }
           }
@@ -407,7 +400,7 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
           if (err.statusCode === 429) {
             console.log('\nchatgpt rate limit', account.id, '\n')
             this._accountsOnCooldown.set(account.id, true, {
-              maxAge: this._accountCooldownMs * 5
+              maxAge: this._accountCooldownMs * 10
             })
 
             const error = new ChatError(err.toString())
@@ -415,6 +408,10 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
             error.isFinal = false
             error.accountId = account.id
             throw error
+          } else if (err.statusCode === 404) {
+            console.log('chatgpt error 404', account.id)
+
+            throw err
           } else if (err.statusCode === 503 || err.statusCode === 502) {
             if (++numRetries <= 1) {
               console.log(
@@ -423,7 +420,7 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
                 } ${err.toString()}; refreshing session`
               )
 
-              if (await this.tryRefreshSessionTokenForAccount(account.id)) {
+              if (await this.tryRefreshSessionForAccount(account.id)) {
                 continue
               }
             }
@@ -446,7 +443,7 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
                   account.id
                 } unexpected error ${err.toString()}; refreshing session`
               )
-              if (await this.tryRefreshSessionTokenForAccount(account.id)) {
+              if (await this.tryRefreshSessionForAccount(account.id)) {
                 continue
               }
             }
@@ -461,7 +458,7 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
                   account.id
                 } unexpected error ${err.toString()}; refreshing session`
               )
-              if (await this.tryRefreshSessionTokenForAccount(account.id)) {
+              if (await this.tryRefreshSessionForAccount(account.id)) {
                 continue
               }
             }
@@ -470,6 +467,8 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
               maxAge: this._accountCooldownMs * 5
             })
           }
+        } else if (err.type === 'chatgpt:pool:account-on-cooldown') {
+          throw err
         } else {
           console.error('UNEXPECTED CHATGPT ERROR', err)
 
@@ -479,7 +478,7 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
                 account.id
               } unexpected error ${err.toString()}; refreshing session`
             )
-            if (await this.tryRefreshSessionTokenForAccount(account.id)) {
+            if (await this.tryRefreshSessionForAccount(account.id)) {
               continue
             }
           }
