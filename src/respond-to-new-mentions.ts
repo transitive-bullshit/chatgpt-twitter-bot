@@ -152,7 +152,7 @@ export async function respondToNewMentions({
         if (index > 0) {
           // slight slow down between ChatGPT requests
           console.log('pausing for chatgpt...')
-          await delay(4000)
+          await delay(6000)
         }
 
         try {
@@ -396,7 +396,7 @@ export async function respondToNewMentions({
             } else if (err.type === 'chatgpt:pool:rate-limit') {
               // That account will be taken out of the pool and put on cooldown, but
               // for a hard 429, let's still rate limit ourselves to avoid IP bans.
-              // session.isRateLimited = true
+              session.isRateLimited = true
             } else if (err.type === 'chatgpt:pool:account-not-found') {
               console.error(err.toString())
 

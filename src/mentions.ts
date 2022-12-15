@@ -108,7 +108,7 @@ export async function getTweetMentionsBatch({
   //    - older tweets that we haven't responded to yet get a small boost
   for (let i = 0; i < numMentionsCandidates; ++i) {
     const mention = batch.mentions[i]
-    let score = (numMentionsCandidates - i) / numMentionsCandidates
+    let score = (0.5 * (numMentionsCandidates - i)) / numMentionsCandidates
 
     const repliedToTweetRef = mention.referenced_tweets?.find(
       (t) => t.type === 'replied_to'

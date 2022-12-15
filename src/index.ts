@@ -231,27 +231,27 @@ async function main() {
         console.log(
           `rate limited ${
             session.isRateLimited ? 'chatgpt' : 'twitter'
-          }; sleeping...`
+          }; sleeping for 2m...`
         )
-        await delay(2 * 60 * 1000) // 1m
+        await delay(2 * 60 * 1000) // 2m
 
         if (session.isRateLimitedTwitter) {
-          console.log('sleeping longer for twitter rate limit...')
+          console.log('sleeping longer for twitter rate limit (5m)...')
           await delay(5 * 60 * 1000) // 5m
         }
       }
 
-      const validSessionInteractions = session.interactions.filter(
-        (interaction) =>
-          !interaction.error && interaction.responseTweetIds?.length
-      )
+      // const validSessionInteractions = session.interactions.filter(
+      //   (interaction) =>
+      //     !interaction.error && interaction.responseTweetIds?.length
+      // )
 
-      if (!validSessionInteractions?.length) {
-        console.log('sleeping...')
+      if (!session.interactions?.length) {
+        console.log('sleeping for 30s...')
         // sleep if there were no mentions to process
         await delay(30000) // 30s
       } else {
-        console.log('sleeping...')
+        console.log('sleeping for 2s...')
         // still sleep if there are active mentions because of rate limits...
         await delay(2000)
       }

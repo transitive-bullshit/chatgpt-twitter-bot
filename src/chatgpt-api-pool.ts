@@ -97,6 +97,7 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
             }
 
             const authInfo = await getOpenAIAuth(accountInit)
+            console.log(accountId, authInfo)
             api = new ChatGPTAPI({
               ...authInfo,
               ...this._chatgptapiOptions
@@ -180,6 +181,7 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
       }
 
       if (this._accountsOnCooldown.size >= this.accounts.length) {
+        console.log(`ChatGPT all accounts are on cooldown; sleeping...`)
         // All API accounts are on cooldown, so wait and try again
         await delay(1000)
       }
@@ -206,7 +208,7 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
       if (!this._accountsOnCooldown.has(account.id)) {
         return account
       }
-    } while (numTries < 10)
+    } while (numTries < 3)
 
     const error = new ChatError(
       `ChatGPTAPIPool account on cooldown "${accountId}"`
@@ -278,6 +280,8 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
 
     if (account.email && account.password) {
       const authInfo = await getOpenAIAuth(account)
+      console.log(accountId, authInfo)
+
       account.api = new ChatGPTAPI({
         ...this._chatgptapiOptions,
         ...authInfo
@@ -315,10 +319,7 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
             // If there is no account specified, but the request is part of an existing
             // conversation, then use the default account which handled all conversations
             // before we added support for multiple accounts.
-            accountId =
-              this.accounts.find(
-                (account) => account.id === 'fisch09202+8@gmail.com'
-              )?.id || this.accounts[0].id
+            accountId = this.accounts[0].id
           }
 
           if (accountId) {
@@ -329,13 +330,22 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
               // we previously used in this conversation is no longer available... I'm
               // really not sure how to handle this aside from throwing an unrecoverable
               // error to the user
-              const error = new ChatError(
-                `ChatGPTAPIPool account not found "${accountId}"`
+              console.warn(
+                `chatgpt account "${accountId}" not found; falling back to new account`
               )
-              error.type = 'chatgpt:pool:account-not-found'
-              error.isFinal = true
-              error.accountId = accountId
-              throw error
+
+              accountId = null
+              opts.conversationId = undefined
+              opts.parentMessageId = undefined
+              account = await this.getAPIAccount()
+
+              // const error = new ChatError(
+              //   `ChatGPTAPIPool account not found "${accountId}"`
+              // )
+              // error.type = 'chatgpt:pool:account-not-found'
+              // error.isFinal = false
+              // error.accountId = accountId
+              // throw error
             }
           } else {
             account = await this.getAPIAccount()
@@ -343,6 +353,9 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
         }
 
         console.log('using chatgpt account', account.id)
+        const moderationPre = await account.api.sendModeration(prompt)
+        console.log('chatgpt moderation pre', account.id, moderationPre)
+
         const response = await account.api.sendMessage(prompt, rest)
 
         const responseL = response.toLowerCase()
@@ -374,6 +387,11 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
           })
           return null
         }
+
+        const moderationPost = await account.api.sendModeration(
+          `${prompt} ${response}`
+        )
+        console.log('chatgpt moderation post', account.id, moderationPost)
 
         return { response, accountId: account.id }
       } catch (err) {

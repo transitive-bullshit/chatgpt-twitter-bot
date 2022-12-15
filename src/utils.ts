@@ -58,7 +58,7 @@ export async function getChatGPTResponse(
 
       if (chatgpt instanceof ChatGPTAPIPool) {
         const res = await chatgpt.sendMessageToAccount(prompt, {
-          timeoutMs: timeoutMs,
+          timeoutMs,
           conversationId,
           parentMessageId,
           accountId: chatgptAccountId,
@@ -69,7 +69,7 @@ export async function getChatGPTResponse(
         response = res.response
       } else {
         response = await chatgpt.sendMessage(prompt, {
-          timeoutMs: timeoutMs,
+          timeoutMs,
           conversationId,
           parentMessageId,
           onConversationResponse
