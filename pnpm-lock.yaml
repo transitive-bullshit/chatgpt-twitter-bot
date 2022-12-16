@@ -17,6 +17,7 @@ specifiers:
   franc: ^6.1.0
   highlight.js: ^11.7.0
   husky: ^8.0.2
+  ioredis: ^5.2.4
   iso-639-3: ^3.0.1
   keyv: ^4.5.2
   lint-staged: ^13.1.0
@@ -57,6 +58,7 @@ dependencies:
   execa: 6.1.0
   franc: 6.1.0
   highlight.js: 11.7.0
+  ioredis: 5.2.4
   iso-639-3: 3.0.1
   keyv: 4.5.2
   markdown-it: 13.0.1

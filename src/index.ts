@@ -1,4 +1,4 @@
-import { ChatGPTAPI, getOpenAIAuth } from 'chatgpt'
+import { ChatGPTAPIBrowser } from 'chatgpt'
 import delay from 'delay'
 import { Client as TwitterClient, auth } from 'twitter-api-sdk'
 import { TwitterApi } from 'twitter-api-v2'
@@ -90,7 +90,7 @@ async function main() {
     ? JSON.parse(chatgptAccountsRaw)
     : null
 
-  let chatgpt: ChatGPTAPI
+  let chatgpt: ChatGPTAPIBrowser
 
   if (chatgptAccounts?.length) {
     console.log(
@@ -98,31 +98,26 @@ async function main() {
     )
 
     const chatgptApiPool = new ChatGPTAPIPool(chatgptAccounts, {
-      userAgent:
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36',
       markdown
     })
 
-    await chatgptApiPool.init()
+    if (!(await chatgptApiPool.init())) {
+      throw new Error('Failed to log in to ChatGPT')
+    }
+
     chatgpt = chatgptApiPool
   } else {
     console.log(`Initializing a single instance of ChatGPTAPI`)
 
-    const authInfo = await getOpenAIAuth({
+    chatgpt = new ChatGPTAPIBrowser({
       email: process.env.OPENAI_EMAIL,
-      password: process.env.OPENAI_PASSWORD
-    })
-
-    chatgpt = new ChatGPTAPI({
-      ...authInfo,
-      // sessionToken: process.env.SESSION_TOKEN!,
-      // clearanceToken: process.env.CLEARANCE_TOKEN!,
-      // userAgent:
-      // 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36',
+      password: process.env.OPENAI_PASSWORD,
       markdown
     })
 
-    await chatgpt.ensureAuth()
+    if (!(await chatgpt.init())) {
+      throw new Error('Failed to log in to ChatGPT')
+    }
   }
 
   console.log()
@@ -247,9 +242,9 @@ async function main() {
       // )
 
       if (!session.interactions?.length) {
-        console.log('sleeping for 30s...')
+        console.log('sleeping for 15s...')
         // sleep if there were no mentions to process
-        await delay(30000) // 30s
+        await delay(15000) // 15s
       } else {
         console.log('sleeping for 2s...')
         // still sleep if there are active mentions because of rate limits...

@@ -1,4 +1,4 @@
-import { ChatGPTAPI } from 'chatgpt'
+import { ChatGPTAPIBrowser, markdownToText } from 'chatgpt'
 import delay from 'delay'
 import pMap from 'p-map'
 import rmfr from 'rmfr'
@@ -48,7 +48,7 @@ export async function respondToNewMentions({
   debugTweet?: string
   resolveAllMentions?: boolean
   maxNumMentionsToProcess?: number
-  chatgpt: ChatGPTAPI
+  chatgpt: ChatGPTAPIBrowser
   twitter: types.TwitterClient
   twitterV1: types.TwitterClientV1
   sinceMentionId?: string
@@ -149,11 +149,11 @@ export async function respondToNewMentions({
           return result
         }
 
-        if (index > 0) {
-          // slight slow down between ChatGPT requests
-          console.log('pausing for chatgpt...')
-          await delay(6000)
-        }
+        // if (index > 0) {
+        //   // slight slow down between ChatGPT requests
+        //   console.log('pausing for chatgpt...')
+        //   await delay(6000)
+        // }
 
         try {
           if (
@@ -298,7 +298,34 @@ export async function respondToNewMentions({
                   target: 'tweet'
                 })
 
-            console.log('twitter media', mediaId)
+            if (mediaId) {
+              console.log('twitter media', mediaId)
+
+              try {
+                const text = markdownToText(response)
+                  ?.trim()
+                  .slice(0, 1000)
+                  .trim()
+
+                if (text) {
+                  const metadata = await twitterV1.createMediaMetadata(
+                    mediaId,
+                    {
+                      alt_text: {
+                        text
+                      }
+                    }
+                  )
+                }
+              } catch (err) {
+                console.warn(
+                  'twitter error posting alt text for media',
+                  mediaId,
+                  err
+                )
+              }
+            }
+
             const tweet = await createTweet(
               {
                 // text: '',
@@ -465,6 +492,8 @@ export async function respondToNewMentions({
                 )
               }
             }
+          } else {
+            console.error('unknown error', err)
           }
 
           if (err.accountId) {
@@ -486,7 +515,7 @@ export async function respondToNewMentions({
         }
       },
       {
-        concurrency: 1
+        concurrency: 2
       }
     )
   ).filter(Boolean)

@@ -1,4 +1,4 @@
-import type { ChatGPTAPI, ConversationResponseEvent } from 'chatgpt'
+import type { ChatGPTAPIBrowser, ConversationResponseEvent } from 'chatgpt'
 import winkNLPModel from 'wink-eng-lite-web-model'
 import winkNLP from 'wink-nlp'
 
@@ -18,9 +18,9 @@ export async function getChatGPTResponse(
     parentMessageId,
     chatgptAccountId,
     stripMentions = false,
-    timeoutMs = 2 * 60 * 1000 // 2 minutes
+    timeoutMs = 3 * 60 * 1000 // 3 minutes
   }: {
-    chatgpt: ChatGPTAPI
+    chatgpt: ChatGPTAPIBrowser
     conversationId?: string
     parentMessageId?: string
     chatgptAccountId?: string
@@ -33,6 +33,8 @@ export async function getChatGPTResponse(
   let accountId: string
 
   const onConversationResponse = (res: ConversationResponseEvent) => {
+    if (!res) return
+
     if (res.conversation_id) {
       conversationId = res.conversation_id
     }
