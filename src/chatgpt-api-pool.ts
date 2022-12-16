@@ -176,6 +176,9 @@ export class ChatGPTAPIPool extends ChatGPTAPIBrowser {
     do {
       this._accountOffset = (this._accountOffset + 1) % this.accounts.length
       const account = this.accounts[this._accountOffset]
+      if (!account) {
+        return null
+      }
 
       if (!this._accountsOnCooldown.has(account.id)) {
         return account
@@ -222,6 +225,7 @@ export class ChatGPTAPIPool extends ChatGPTAPIBrowser {
 
   override async getIsAuthenticated() {
     const account = await this.getAPIAccount()
+    if (!account) return false
     console.log('getIsAuthenticated', account.id)
     return await account.api.getIsAuthenticated()
   }
@@ -344,13 +348,20 @@ export class ChatGPTAPIPool extends ChatGPTAPIBrowser {
           } else {
             account = await this.getAPIAccount()
           }
+
+          if (!account) {
+            const error = new ChatError(`ChatGPTAPIPool no accounts available`)
+            error.type = 'chatgpt:pool:no-accounts'
+            error.isFinal = false
+            throw error
+          }
         }
 
         console.log('using chatgpt account', account.id)
         // const moderationPre = await account.api.sendModeration(prompt)
         // console.log('chatgpt moderation pre', account.id, moderationPre)
 
-        await account.api.resetThread()
+        // await account.api.resetThread()
         const response = await account.api.sendMessage(prompt, rest)
 
         const responseL = response.toLowerCase()
@@ -481,6 +492,8 @@ export class ChatGPTAPIPool extends ChatGPTAPIBrowser {
             })
           }
         } else if (err.type === 'chatgpt:pool:account-on-cooldown') {
+          throw err
+        } else if (err.type === 'chatgpt:pool:no-accounts') {
           throw err
         } else {
           console.error('UNEXPECTED CHATGPT ERROR', err)

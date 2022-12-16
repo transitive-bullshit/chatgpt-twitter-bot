@@ -205,6 +205,12 @@ async function main() {
         break
       }
 
+      if (session.hasAllOpenAIAccountsExpired) {
+        throw new Error(
+          'ERROR all OpenAI accounts have expired. Unrecoverable. Please restart process.'
+        )
+      }
+
       if (session.isExpiredAuth) {
         if (++numErrors > 50) {
           throw new Error(

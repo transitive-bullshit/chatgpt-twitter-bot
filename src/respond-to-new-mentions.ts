@@ -90,7 +90,8 @@ export async function respondToNewMentions({
     isRateLimited: false,
     isRateLimitedTwitter: false,
     isExpiredAuth: false,
-    isExpiredAuthTwitter: false
+    isExpiredAuthTwitter: false,
+    hasAllOpenAIAccountsExpired: false
   }
 
   if (earlyExit) {
@@ -140,6 +141,11 @@ export async function respondToNewMentions({
 
         if (session.isExpiredAuthTwitter) {
           result.error = 'Twitter auth expired'
+          return result
+        }
+
+        if (session.hasAllOpenAIAccountsExpired) {
+          result.error = 'All ChatGPT accounts expired'
           return result
         }
 
@@ -452,6 +458,8 @@ export async function respondToNewMentions({
               }
             } else if (err.type === 'chatgpt:pool:account-on-cooldown') {
               console.error(err.toString())
+            } else if (err.type === 'chatgpt:pool:no-accounts') {
+              session.hasAllOpenAIAccountsExpired = true
             }
           } else if (
             err.toString().toLowerCase() === 'error: chatgptapi error 429'
