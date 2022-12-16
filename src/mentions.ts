@@ -13,7 +13,7 @@ import {
 import { keyv } from './keyv'
 import { maxTwitterId, minTwitterId, tweetComparator } from './twitter'
 import { getTwitterUserIdMentions } from './twitter-mentions'
-import { getTweetUrl } from './utils'
+import { getTweetUrl, pick } from './utils'
 
 const rUrl = urlRegex()
 
@@ -331,21 +331,6 @@ export function isValidMention(
     return false
   }
 
-  const text = mention.text
-  mention.prompt = getPrompt(text)
-
-  if (!mention.prompt) {
-    return false
-  }
-
-  if (
-    mention.prompt.startsWith('(human) ') &&
-    priorityUsersList.has(mention.author_id)
-  ) {
-    // ignore tweets where I'm responding to people
-    return false
-  }
-
   const repliedToTweetRef = mention.referenced_tweets?.find(
     (t) => t.type === 'replied_to'
   )
@@ -363,7 +348,29 @@ export function isValidMention(
     repliedToTweet.numMentions = subMentions.numMentions
   }
 
+  let text = mention.text
+  mention.prompt = getPrompt(text)
+
+  if (
+    mention.prompt.startsWith('(human) ') &&
+    priorityUsersList.has(mention.author_id)
+  ) {
+    // ignore tweets where I'm responding to people
+    return false
+  }
+
   const { numMentions, usernames } = getNumMentionsInText(text)
+
+  if (!mention.prompt) {
+    if (isReply) {
+      text = repliedToTweet.text
+      mention.prompt = repliedToTweet.prompt
+    }
+
+    if (!mention.prompt) {
+      return false
+    }
+  }
 
   if (
     numMentions > 0 &&
