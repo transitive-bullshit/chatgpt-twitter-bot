@@ -1,13 +1,12 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
-import { ChatGPTAPIBrowser, ChatResponse } from 'chatgpt'
+import { ChatGPTAPIBrowser, ChatGPTError, ChatResponse } from 'chatgpt'
 import delay from 'delay'
 import mkdir from 'mkdirp'
 import pMap from 'p-map'
 import QuickLRU from 'quick-lru'
 
-import { ChatGPTError } from '../../chatgpt-api/build'
 import { cacheDir } from './config'
 import { ChatError } from './types'
 import { omit } from './utils'
