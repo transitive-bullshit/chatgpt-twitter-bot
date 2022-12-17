@@ -84,6 +84,11 @@ export class ChatGPTAPIPool extends ChatGPTAPIBrowser {
    * each of them.
    */
   override async initSession() {
+    // Disregard warnings about too many eventemitters since they're all listening for
+    // child process management
+    // https://stackoverflow.com/questions/9768444/possible-eventemitter-memory-leak-detected
+    process.setMaxListeners(0)
+
     this._accounts = (
       await pMap(
         this._accountsInit,

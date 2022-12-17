@@ -26,16 +26,6 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Setup Python Poetry
-        uses: abatilo/actions-poetry@v2
-        with:
-          poetry-version: ${{ matrix.poetry-version }}
-
       - name: Install pnpm
         uses: pnpm/action-setup@v2
         id: pnpm-install
@@ -59,9 +49,6 @@ jobs:
 
       - name: Install NPM dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Install Python dependencies
-        run: poetry install
 
       - name: Run test
         run: pnpm run test
