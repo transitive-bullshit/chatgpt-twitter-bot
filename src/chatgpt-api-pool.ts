@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
-import { ChatGPTAPIBrowser } from 'chatgpt'
+import { ChatGPTAPIBrowser, ChatResponse } from 'chatgpt'
 import delay from 'delay'
 import mkdir from 'mkdirp'
 import pMap from 'p-map'
@@ -24,6 +24,7 @@ type ChatGPTAPIInstanceOptions = Omit<
 export interface ChatGPTAPIAccountInit {
   email: string
   password: string
+  isGoogleLogin?: boolean
 }
 
 interface ChatGPTAPIAccount extends ChatGPTAPIAccountInit {
@@ -82,7 +83,7 @@ export class ChatGPTAPIPool extends ChatGPTAPIBrowser {
    * Initializes all ChatGPT accounts and ensures value session tokens for
    * each of them.
    */
-  override async init() {
+  override async initSession() {
     this._accounts = (
       await pMap(
         this._accountsInit,
@@ -102,9 +103,7 @@ export class ChatGPTAPIPool extends ChatGPTAPIBrowser {
             })
 
             try {
-              if (!(await api.init())) {
-                api = null
-              }
+              await api.initSession()
             } catch (err) {
               console.warn(
                 `ChatGPTAPIPool invalid session token for account "${accountId}"`,
@@ -139,7 +138,7 @@ export class ChatGPTAPIPool extends ChatGPTAPIBrowser {
           }
         },
         {
-          concurrency: 1
+          concurrency: 2
         }
       )
     ).filter(Boolean)
@@ -153,12 +152,17 @@ export class ChatGPTAPIPool extends ChatGPTAPIBrowser {
     )
 
     await this.storeAccountsToDisk()
-    return this._accounts.length > 0
+
+    if (!this._accounts.length) {
+      const error = new ChatError('No ChatGPT accounts authenticated')
+      error.type = 'chatgpt:pool:no-accounts'
+      throw error
+    }
   }
 
   get accounts(): ChatGPTAPIAccount[] {
     if (!this._accounts) {
-      throw new Error('ChatGPTAPIPool error must call init() before use')
+      throw new Error('ChatGPTAPIPool error must call initSession() before use')
     }
 
     return this._accounts
@@ -166,7 +170,7 @@ export class ChatGPTAPIPool extends ChatGPTAPIBrowser {
 
   get accountsMap(): Record<string, ChatGPTAPIAccount> {
     if (!this._accountsMap) {
-      throw new Error('ChatGPTAPIPool error must call init() before use')
+      throw new Error('ChatGPTAPIPool error must call initSession() before use')
     }
 
     return this._accountsMap
@@ -284,7 +288,7 @@ export class ChatGPTAPIPool extends ChatGPTAPIBrowser {
     }
 
     if (account.email && account.password) {
-      await account.api.handle403Error()
+      await account.api.refreshSession()
       return true
     }
 
@@ -295,8 +299,7 @@ export class ChatGPTAPIPool extends ChatGPTAPIBrowser {
     prompt: string,
     opts: ChatGPTAPISendMessageOptions
   ) {
-    const res = await this.sendMessageToAccount(prompt, opts)
-    return res.response
+    return this.sendMessageToAccount(prompt, opts)
   }
 
   async sendMessageToAccount(
@@ -304,7 +307,7 @@ export class ChatGPTAPIPool extends ChatGPTAPIBrowser {
     opts: ChatGPTAPISendMessageOptions & {
       accountId?: string
     } = {}
-  ): Promise<{ response: string; accountId: string }> {
+  ): Promise<ChatResponse & { accountId: string }> {
     let { accountId, ...rest } = opts
     let account: ChatGPTAPIAccount
 
@@ -362,10 +365,13 @@ export class ChatGPTAPIPool extends ChatGPTAPIBrowser {
         // console.log('chatgpt moderation pre', account.id, moderationPre)
 
         // await account.api.resetThread()
-        const response = await account.api.sendMessage(prompt, rest)
+        const res = await account.api.sendMessage(prompt, rest)
 
-        const responseL = response.toLowerCase()
-        if (responseL.includes('too many requests, please slow down')) {
+        const responseL = res.response.toLowerCase()
+        if (
+          responseL.includes('too many requests, please slow down') ||
+          responseL.includes('too many requests in 1 hour. try again later')
+        ) {
           this._accountsOnCooldown.set(account.id, true, {
             maxAge: this._accountCooldownMs * 5
           })
@@ -380,7 +386,7 @@ export class ChatGPTAPIPool extends ChatGPTAPIBrowser {
           if (++numRetries <= 1) {
             console.log(
               `chatgpt response indicates expired session for "${account.id}"`,
-              response
+              res.response
             )
 
             if (await this.tryRefreshSessionForAccount(account.id)) {
@@ -395,11 +401,11 @@ export class ChatGPTAPIPool extends ChatGPTAPIBrowser {
         }
 
         // const moderationPost = await account.api.sendModeration(
-        //   `${prompt} ${response}`
+        //   `${prompt} ${res.response}`
         // )
         // console.log('chatgpt moderation post', account.id, moderationPost)
 
-        return { response, accountId: account.id }
+        return { ...res, accountId: account.id }
       } catch (err) {
         if (err.name === 'TimeoutError') {
           if (++numRetries <= 1) {
@@ -536,6 +542,25 @@ export class ChatGPTAPIPool extends ChatGPTAPIBrowser {
     console.log(
       `CHATGPT ERROR REMOVING account ${accountId} from pool; unexpected error ${err.toString()}`
     )
+
+    const account = this.accountsMap[accountId]
+
+    if (!account) {
+      const error = new ChatError(
+        `ChatGPTAPIPool account not found "${accountId}"`
+      )
+      error.type = 'chatgpt:pool:account-not-found'
+      error.isFinal = true
+      error.accountId = accountId
+      throw error
+    }
+
+    try {
+      await account.api.resetSession()
+      return
+    } catch (err) {
+      console.error('error resetting session', accountId)
+    }
 
     this._accounts = this._accounts.filter((a) => a.id !== accountId)
     delete this._accountsMap[accountId]

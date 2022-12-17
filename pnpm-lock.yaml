@@ -7,7 +7,7 @@ specifiers:
   '@types/node': ^18.11.13
   '@types/rmfr': ^2.0.1
   ava: ^5.1.0
-  chatgpt: 2.5.0
+  chatgpt: 3.1.0
   chatgpt-token: ^0.0.1
   conf: ^10.2.0
   del-cli: ^5.0.0
@@ -51,7 +51,7 @@ specifiers:
 
 dependencies:
   '@keyv/redis': 2.5.4
-  chatgpt: 2.5.0_puppeteer@19.4.0
+  chatgpt: 3.1.0_puppeteer@19.4.0
   chatgpt-token: 0.0.1
   conf: 10.2.0
   dotenv-safe: 8.2.0
@@ -996,8 +996,8 @@ packages:
       '@playwright/test': 1.28.1
     dev: false
 
-  /chatgpt/2.5.0_puppeteer@19.4.0:
-    resolution: {integrity: sha512-PHQPE0IO0s8Q94+rSP5K2OjrSLxHkwunGDEMXLxAa0F+e6fhleDWR9msQnC9hZmSqM5yhwzqXQye2UBlUBITrQ==}
+  /chatgpt/3.1.0_puppeteer@19.4.0:
+    resolution: {integrity: sha512-mYQM2xb0ENEmPT6f6hQKWBxh+xBo3ygrJ0Vk/EFyrKDg7rHuGjOp1qBX+oIyljWmggxCucR+BE7MkIFPWOqIUQ==}
     engines: {node: '>=18'}
     peerDependencies:
       puppeteer: '*'
@@ -1011,6 +1011,7 @@ packages:
       puppeteer-extra: 3.3.4_puppeteer@19.4.0
       puppeteer-extra-plugin-recaptcha: 3.6.6_puppeteer-extra@3.3.4
       puppeteer-extra-plugin-stealth: 2.11.1_puppeteer-extra@3.3.4
+      random: 4.1.0
       remark: 14.0.2
       strip-markdown: 5.0.0
       uuid: 9.0.0

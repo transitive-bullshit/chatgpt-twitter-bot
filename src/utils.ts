@@ -1,4 +1,4 @@
-import type { ChatGPTAPIBrowser, ConversationResponseEvent } from 'chatgpt'
+import type { ChatGPTAPIBrowser, ChatResponse } from 'chatgpt'
 import winkNLPModel from 'wink-eng-lite-web-model'
 import winkNLP from 'wink-nlp'
 
@@ -32,25 +32,12 @@ export async function getChatGPTResponse(
   let messageId: string
   let accountId: string
 
-  const onConversationResponse = (res: ConversationResponseEvent) => {
-    if (!res) return
-
-    if (res.conversation_id) {
-      conversationId = res.conversation_id
-    }
-
-    if (res.message?.id) {
-      messageId = res.message.id
-    }
-
-    const partialResponse = res.message?.content?.parts?.[0]
-    if (partialResponse) {
-      response = partialResponse
-    }
-  }
-
   do {
     const origConversationId = conversationId
+
+    const onProgress = (partialResponse: ChatResponse) => {
+      response = partialResponse?.response
+    }
 
     try {
       console.log('chatgpt.sendMessage', prompt, {
@@ -64,18 +51,24 @@ export async function getChatGPTResponse(
           conversationId,
           parentMessageId,
           accountId: chatgptAccountId,
-          onConversationResponse
+          onProgress
         })
 
         accountId = res.accountId
         response = res.response
+        conversationId = res.conversationId
+        messageId = res.messageId
       } else {
-        response = await chatgpt.sendMessage(prompt, {
+        const res = await chatgpt.sendMessage(prompt, {
           timeoutMs,
           conversationId,
           parentMessageId,
-          onConversationResponse
+          onProgress
         })
+
+        response = res.response
+        conversationId = res.conversationId
+        messageId = res.messageId
       }
 
       break

@@ -102,6 +102,8 @@ export async function respondToNewMentions({
     return session
   }
 
+  const isChatGPTPool = chatgpt instanceof ChatGPTAPIPool
+
   const results = (
     await pMap(
       batch.mentions,
@@ -248,7 +250,10 @@ export async function respondToNewMentions({
           result.chatgptAccountId = chatgptResponse.accountId
 
           const responseL = response.toLowerCase()
-          if (responseL.includes('too many requests, please slow down')) {
+          if (
+            responseL.includes('too many requests, please slow down') ||
+            responseL.includes('too many requests in 1 hour. try again later')
+          ) {
             session.isRateLimited = true
             return null
           }
@@ -411,7 +416,7 @@ export async function respondToNewMentions({
               }
             }
 
-            if (!(chatgpt instanceof ChatGPTAPIPool)) {
+            if (!isChatGPTPool) {
               await delay(10000)
             }
           } else if (err instanceof types.ChatError) {
@@ -523,7 +528,7 @@ export async function respondToNewMentions({
         }
       },
       {
-        concurrency: 2
+        concurrency: isChatGPTPool ? 4 : 1
       }
     )
   ).filter(Boolean)

@@ -101,9 +101,7 @@ async function main() {
       markdown
     })
 
-    if (!(await chatgptApiPool.init())) {
-      throw new Error('Failed to log in to ChatGPT')
-    }
+    await chatgptApiPool.initSession()
 
     chatgpt = chatgptApiPool
   } else {
@@ -115,9 +113,7 @@ async function main() {
       markdown
     })
 
-    if (!(await chatgpt.init())) {
-      throw new Error('Failed to log in to ChatGPT')
-    }
+    await chatgpt.initSession()
   }
 
   console.log()
