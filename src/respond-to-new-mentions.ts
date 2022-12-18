@@ -1,4 +1,4 @@
-import { ChatGPTAPI } from 'chatgpt'
+import { ChatGPTAPIBrowser, markdownToText } from 'chatgpt'
 import delay from 'delay'
 import pMap from 'p-map'
 import rmfr from 'rmfr'
@@ -48,7 +48,7 @@ export async function respondToNewMentions({
   debugTweet?: string
   resolveAllMentions?: boolean
   maxNumMentionsToProcess?: number
-  chatgpt: ChatGPTAPI
+  chatgpt: ChatGPTAPIBrowser
   twitter: types.TwitterClient
   twitterV1: types.TwitterClientV1
   sinceMentionId?: string
@@ -90,7 +90,8 @@ export async function respondToNewMentions({
     isRateLimited: false,
     isRateLimitedTwitter: false,
     isExpiredAuth: false,
-    isExpiredAuthTwitter: false
+    isExpiredAuthTwitter: false,
+    hasAllOpenAIAccountsExpired: false
   }
 
   if (earlyExit) {
@@ -100,6 +101,8 @@ export async function respondToNewMentions({
 
     return session
   }
+
+  const isChatGPTPool = chatgpt instanceof ChatGPTAPIPool
 
   const results = (
     await pMap(
@@ -143,17 +146,22 @@ export async function respondToNewMentions({
           return result
         }
 
+        if (session.hasAllOpenAIAccountsExpired) {
+          result.error = 'All ChatGPT accounts expired'
+          return result
+        }
+
         if (!prompt) {
           result.error = 'empty prompt'
           result.isErrorFinal = true
           return result
         }
 
-        if (index > 0) {
-          // slight slow down between ChatGPT requests
-          console.log('pausing for chatgpt...')
-          await delay(4000)
-        }
+        // if (index > 0) {
+        //   // slight slow down between ChatGPT requests
+        //   console.log('pausing for chatgpt...')
+        //   await delay(6000)
+        // }
 
         try {
           if (
@@ -242,7 +250,10 @@ export async function respondToNewMentions({
           result.chatgptAccountId = chatgptResponse.accountId
 
           const responseL = response.toLowerCase()
-          if (responseL.includes('too many requests, please slow down')) {
+          if (
+            responseL.includes('too many requests, please slow down') ||
+            responseL.includes('too many requests in 1 hour. try again later')
+          ) {
             session.isRateLimited = true
             return null
           }
@@ -298,7 +309,34 @@ export async function respondToNewMentions({
                   target: 'tweet'
                 })
 
-            console.log('twitter media', mediaId)
+            if (mediaId) {
+              console.log('twitter media', mediaId)
+
+              try {
+                const text = markdownToText(response)
+                  ?.trim()
+                  .slice(0, 1000)
+                  .trim()
+
+                if (text) {
+                  const metadata = await twitterV1.createMediaMetadata(
+                    mediaId,
+                    {
+                      alt_text: {
+                        text
+                      }
+                    }
+                  )
+                }
+              } catch (err) {
+                console.warn(
+                  'twitter error posting alt text for media',
+                  mediaId,
+                  err
+                )
+              }
+            }
+
             const tweet = await createTweet(
               {
                 // text: '',
@@ -378,7 +416,7 @@ export async function respondToNewMentions({
               }
             }
 
-            if (!(chatgpt instanceof ChatGPTAPIPool)) {
+            if (!isChatGPTPool) {
               await delay(10000)
             }
           } else if (err instanceof types.ChatError) {
@@ -396,7 +434,7 @@ export async function respondToNewMentions({
             } else if (err.type === 'chatgpt:pool:rate-limit') {
               // That account will be taken out of the pool and put on cooldown, but
               // for a hard 429, let's still rate limit ourselves to avoid IP bans.
-              // session.isRateLimited = true
+              session.isRateLimited = true
             } else if (err.type === 'chatgpt:pool:account-not-found') {
               console.error(err.toString())
 
@@ -425,6 +463,8 @@ export async function respondToNewMentions({
               }
             } else if (err.type === 'chatgpt:pool:account-on-cooldown') {
               console.error(err.toString())
+            } else if (err.type === 'chatgpt:pool:no-accounts') {
+              session.hasAllOpenAIAccountsExpired = true
             }
           } else if (
             err.toString().toLowerCase() === 'error: chatgptapi error 429'
@@ -465,6 +505,8 @@ export async function respondToNewMentions({
                 )
               }
             }
+          } else {
+            console.error('unknown error', err)
           }
 
           if (err.accountId) {
@@ -486,7 +528,7 @@ export async function respondToNewMentions({
         }
       },
       {
-        concurrency: 1
+        concurrency: isChatGPTPool ? 4 : 1
       }
     )
   ).filter(Boolean)

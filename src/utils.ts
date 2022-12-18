@@ -1,4 +1,4 @@
-import type { ChatGPTAPI, ConversationResponseEvent } from 'chatgpt'
+import type { ChatGPTAPIBrowser, ChatResponse } from 'chatgpt'
 import winkNLPModel from 'wink-eng-lite-web-model'
 import winkNLP from 'wink-nlp'
 
@@ -18,9 +18,9 @@ export async function getChatGPTResponse(
     parentMessageId,
     chatgptAccountId,
     stripMentions = false,
-    timeoutMs = 2 * 60 * 1000 // 2 minutes
+    timeoutMs = 3 * 60 * 1000 // 3 minutes
   }: {
-    chatgpt: ChatGPTAPI
+    chatgpt: ChatGPTAPIBrowser
     conversationId?: string
     parentMessageId?: string
     chatgptAccountId?: string
@@ -32,23 +32,12 @@ export async function getChatGPTResponse(
   let messageId: string
   let accountId: string
 
-  const onConversationResponse = (res: ConversationResponseEvent) => {
-    if (res.conversation_id) {
-      conversationId = res.conversation_id
-    }
-
-    if (res.message?.id) {
-      messageId = res.message.id
-    }
-
-    const partialResponse = res.message?.content?.parts?.[0]
-    if (partialResponse) {
-      response = partialResponse
-    }
-  }
-
   do {
     const origConversationId = conversationId
+
+    const onProgress = (partialResponse: ChatResponse) => {
+      response = partialResponse?.response
+    }
 
     try {
       console.log('chatgpt.sendMessage', prompt, {
@@ -58,22 +47,28 @@ export async function getChatGPTResponse(
 
       if (chatgpt instanceof ChatGPTAPIPool) {
         const res = await chatgpt.sendMessageToAccount(prompt, {
-          timeoutMs: timeoutMs,
+          timeoutMs,
           conversationId,
           parentMessageId,
           accountId: chatgptAccountId,
-          onConversationResponse
+          onProgress
         })
 
         accountId = res.accountId
         response = res.response
+        conversationId = res.conversationId
+        messageId = res.messageId
       } else {
-        response = await chatgpt.sendMessage(prompt, {
-          timeoutMs: timeoutMs,
+        const res = await chatgpt.sendMessage(prompt, {
+          timeoutMs,
           conversationId,
           parentMessageId,
-          onConversationResponse
+          onProgress
         })
+
+        response = res.response
+        conversationId = res.conversationId
+        messageId = res.messageId
       }
 
       break

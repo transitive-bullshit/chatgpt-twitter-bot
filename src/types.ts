@@ -50,6 +50,7 @@ export interface ChatGPTSession {
   isExpiredAuth: boolean
   isExpiredAuthTwitter: boolean
   sinceMentionId?: string
+  hasAllOpenAIAccountsExpired?: boolean
 }
 
 export interface ChatGPTResponse {
@@ -116,6 +117,7 @@ export type ChatErrorType =
   | 'chatgpt:pool:unavailable'
   | 'chatgpt:pool:account-not-found'
   | 'chatgpt:pool:account-on-cooldown'
+  | 'chatgpt:pool:no-accounts'
 
 export class ChatError extends Error {
   isFinal: boolean = false

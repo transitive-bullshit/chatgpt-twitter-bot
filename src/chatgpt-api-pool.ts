@@ -1,34 +1,34 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
-import { ChatGPTAPI, getOpenAIAuth } from 'chatgpt'
+import { ChatGPTAPIBrowser, ChatGPTError, ChatResponse } from 'chatgpt'
 import delay from 'delay'
 import mkdir from 'mkdirp'
 import pMap from 'p-map'
 import QuickLRU from 'quick-lru'
 
-import { ChatGPTError } from '../../chatgpt-api/build'
 import { cacheDir } from './config'
 import { ChatError } from './types'
 import { omit } from './utils'
 
-type ChatGPTAPIInstance = InstanceType<typeof ChatGPTAPI>
+type ChatGPTAPIInstance = InstanceType<typeof ChatGPTAPIBrowser>
 type ChatGPTAPISendMessageOptions = Parameters<
   ChatGPTAPIInstance['sendMessage']
 >[1]
 type ChatGPTAPIInstanceOptions = Omit<
-  ConstructorParameters<typeof ChatGPTAPI>[0],
-  'sessionToken' | 'clearanceToken'
+  ConstructorParameters<typeof ChatGPTAPIBrowser>[0],
+  'email' | 'password'
 >
 
 export interface ChatGPTAPIAccountInit {
   email: string
   password: string
+  isGoogleLogin?: boolean
 }
 
 interface ChatGPTAPIAccount extends ChatGPTAPIAccountInit {
   id: string
-  api: ChatGPTAPI
+  api: ChatGPTAPIBrowser
 }
 
 /**
@@ -40,7 +40,7 @@ interface ChatGPTAPIAccount extends ChatGPTAPIAccountInit {
  * NOTE: **`conversationId` and `parentMessageId` are account-specific**, so
  * conversations cannot be transferred between accounts.
  */
-export class ChatGPTAPIPool extends ChatGPTAPI {
+export class ChatGPTAPIPool extends ChatGPTAPIBrowser {
   protected _accounts: Array<ChatGPTAPIAccount>
   protected _accountsMap: Record<string, ChatGPTAPIAccount>
   protected _accountsInit: Array<ChatGPTAPIAccountInit>
@@ -63,8 +63,8 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
 
     super({
       ...initOptions,
-      sessionToken: 'invalid',
-      clearanceToken: 'invalid'
+      email: 'invalid',
+      password: 'invalid'
     })
 
     this._chatgptapiOptions = initOptions
@@ -82,12 +82,17 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
    * Initializes all ChatGPT accounts and ensures value session tokens for
    * each of them.
    */
-  async init() {
+  override async initSession() {
+    // Disregard warnings about too many eventemitters since they're all listening for
+    // child process management
+    // https://stackoverflow.com/questions/9768444/possible-eventemitter-memory-leak-detected
+    process.setMaxListeners(0)
+
     this._accounts = (
       await pMap(
         this._accountsInit,
         async (accountInit, index): Promise<ChatGPTAPIAccount> => {
-          let api: ChatGPTAPI = null
+          let api: ChatGPTAPIBrowser = null
           const accountId = accountInit.email || `account-${index}`
 
           try {
@@ -96,14 +101,13 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
               return null
             }
 
-            const authInfo = await getOpenAIAuth(accountInit)
-            api = new ChatGPTAPI({
-              ...authInfo,
+            api = new ChatGPTAPIBrowser({
+              ...accountInit,
               ...this._chatgptapiOptions
             })
 
             try {
-              await api.ensureAuth()
+              await api.initSession()
             } catch (err) {
               console.warn(
                 `ChatGPTAPIPool invalid session token for account "${accountId}"`,
@@ -138,7 +142,7 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
           }
         },
         {
-          concurrency: 1
+          concurrency: 2
         }
       )
     ).filter(Boolean)
@@ -152,11 +156,17 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
     )
 
     await this.storeAccountsToDisk()
+
+    if (!this._accounts.length) {
+      const error = new ChatError('No ChatGPT accounts authenticated')
+      error.type = 'chatgpt:pool:no-accounts'
+      throw error
+    }
   }
 
   get accounts(): ChatGPTAPIAccount[] {
     if (!this._accounts) {
-      throw new Error('ChatGPTAPIPool error must call init() before use')
+      throw new Error('ChatGPTAPIPool error must call initSession() before use')
     }
 
     return this._accounts
@@ -164,7 +174,7 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
 
   get accountsMap(): Record<string, ChatGPTAPIAccount> {
     if (!this._accountsMap) {
-      throw new Error('ChatGPTAPIPool error must call init() before use')
+      throw new Error('ChatGPTAPIPool error must call initSession() before use')
     }
 
     return this._accountsMap
@@ -174,12 +184,16 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
     do {
       this._accountOffset = (this._accountOffset + 1) % this.accounts.length
       const account = this.accounts[this._accountOffset]
+      if (!account) {
+        return null
+      }
 
       if (!this._accountsOnCooldown.has(account.id)) {
         return account
       }
 
       if (this._accountsOnCooldown.size >= this.accounts.length) {
+        console.log(`ChatGPT all accounts are on cooldown; sleeping...`)
         // All API accounts are on cooldown, so wait and try again
         await delay(1000)
       }
@@ -206,7 +220,7 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
       if (!this._accountsOnCooldown.has(account.id)) {
         return account
       }
-    } while (numTries < 10)
+    } while (numTries < 3)
 
     const error = new ChatError(
       `ChatGPTAPIPool account on cooldown "${accountId}"`
@@ -219,43 +233,44 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
 
   override async getIsAuthenticated() {
     const account = await this.getAPIAccount()
+    if (!account) return false
     console.log('getIsAuthenticated', account.id)
     return await account.api.getIsAuthenticated()
   }
 
-  override async ensureAuth() {
-    const account = await this.getAPIAccount()
-    console.log('ensureAuth', account.id)
+  // async ensureAuth() {
+  //   const account = await this.getAPIAccount()
+  //   console.log('ensureAuth', account.id)
 
-    try {
-      return await account.api.ensureAuth()
-    } catch (err) {
-      if (account.email && account.password) {
-        if (await this.tryRefreshSessionForAccount(account.id)) {
-          return await account.api.ensureAuth()
-        }
-      }
+  //   try {
+  //     return await account.api.ensureAuth()
+  //   } catch (err) {
+  //     if (account.email && account.password) {
+  //       if (await this.tryRefreshSessionForAccount(account.id)) {
+  //         return await account.api.ensureAuth()
+  //       }
+  //     }
 
-      throw err
-    }
-  }
+  //     throw err
+  //   }
+  // }
 
-  override async refreshAccessToken() {
-    const account = await this.getAPIAccount()
-    console.log('refreshAccessToken', account.id)
+  // override async refreshAccessToken() {
+  //   const account = await this.getAPIAccount()
+  //   console.log('refreshAccessToken', account.id)
 
-    try {
-      return await account.api.refreshAccessToken()
-    } catch (err) {
-      if (account.email && account.password) {
-        if (await this.tryRefreshSessionForAccount(account.id)) {
-          return await account.api.refreshAccessToken()
-        }
-      }
+  //   try {
+  //     return await account.api.refreshAccessToken()
+  //   } catch (err) {
+  //     if (account.email && account.password) {
+  //       if (await this.tryRefreshSessionForAccount(account.id)) {
+  //         return await account.api.refreshAccessToken()
+  //       }
+  //     }
 
-      throw err
-    }
-  }
+  //     throw err
+  //   }
+  // }
 
   /**
    * Attempts to renew an account's session token automatically if an `email` and
@@ -277,12 +292,7 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
     }
 
     if (account.email && account.password) {
-      const authInfo = await getOpenAIAuth(account)
-      account.api = new ChatGPTAPI({
-        ...this._chatgptapiOptions,
-        ...authInfo
-      })
-      await this.storeAccountsToDisk()
+      await account.api.refreshSession()
       return true
     }
 
@@ -293,16 +303,15 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
     prompt: string,
     opts: ChatGPTAPISendMessageOptions
   ) {
-    const res = await this.sendMessageToAccount(prompt, opts)
-    return res.response
+    return this.sendMessageToAccount(prompt, opts)
   }
 
   async sendMessageToAccount(
     prompt: string,
     opts: ChatGPTAPISendMessageOptions & {
       accountId?: string
-    }
-  ): Promise<{ response: string; accountId: string }> {
+    } = {}
+  ): Promise<ChatResponse & { accountId: string }> {
     let { accountId, ...rest } = opts
     let account: ChatGPTAPIAccount
 
@@ -315,10 +324,7 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
             // If there is no account specified, but the request is part of an existing
             // conversation, then use the default account which handled all conversations
             // before we added support for multiple accounts.
-            accountId =
-              this.accounts.find(
-                (account) => account.id === 'fisch09202+8@gmail.com'
-              )?.id || this.accounts[0].id
+            accountId = this.accounts[0].id
           }
 
           if (accountId) {
@@ -329,26 +335,49 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
               // we previously used in this conversation is no longer available... I'm
               // really not sure how to handle this aside from throwing an unrecoverable
               // error to the user
-              const error = new ChatError(
-                `ChatGPTAPIPool account not found "${accountId}"`
+              console.warn(
+                `chatgpt account "${accountId}" not found; falling back to new account`
               )
-              error.type = 'chatgpt:pool:account-not-found'
-              error.isFinal = true
-              error.accountId = accountId
-              throw error
+
+              accountId = null
+              opts.conversationId = undefined
+              opts.parentMessageId = undefined
+              account = await this.getAPIAccount()
+
+              // const error = new ChatError(
+              //   `ChatGPTAPIPool account not found "${accountId}"`
+              // )
+              // error.type = 'chatgpt:pool:account-not-found'
+              // error.isFinal = false
+              // error.accountId = accountId
+              // throw error
             }
           } else {
             account = await this.getAPIAccount()
           }
+
+          if (!account) {
+            const error = new ChatError(`ChatGPTAPIPool no accounts available`)
+            error.type = 'chatgpt:pool:no-accounts'
+            error.isFinal = false
+            throw error
+          }
         }
 
         console.log('using chatgpt account', account.id)
-        const response = await account.api.sendMessage(prompt, rest)
+        // const moderationPre = await account.api.sendModeration(prompt)
+        // console.log('chatgpt moderation pre', account.id, moderationPre)
 
-        const responseL = response.toLowerCase()
-        if (responseL.includes('too many requests, please slow down')) {
+        // await account.api.resetThread()
+        const res = await account.api.sendMessage(prompt, rest)
+
+        const responseL = res.response.toLowerCase()
+        if (
+          responseL.includes('too many requests, please slow down') ||
+          responseL.includes('too many requests in 1 hour. try again later')
+        ) {
           this._accountsOnCooldown.set(account.id, true, {
-            maxAge: this._accountCooldownMs * 3
+            maxAge: this._accountCooldownMs * 5
           })
           return null
         }
@@ -361,7 +390,7 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
           if (++numRetries <= 1) {
             console.log(
               `chatgpt response indicates expired session for "${account.id}"`,
-              response
+              res.response
             )
 
             if (await this.tryRefreshSessionForAccount(account.id)) {
@@ -375,7 +404,12 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
           return null
         }
 
-        return { response, accountId: account.id }
+        // const moderationPost = await account.api.sendModeration(
+        //   `${prompt} ${res.response}`
+        // )
+        // console.log('chatgpt moderation post', account.id, moderationPost)
+
+        return { ...res, accountId: account.id }
       } catch (err) {
         if (err.name === 'TimeoutError') {
           if (++numRetries <= 1) {
@@ -469,6 +503,8 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
           }
         } else if (err.type === 'chatgpt:pool:account-on-cooldown') {
           throw err
+        } else if (err.type === 'chatgpt:pool:no-accounts') {
+          throw err
         } else {
           console.error('UNEXPECTED CHATGPT ERROR', err)
 
@@ -510,6 +546,25 @@ export class ChatGPTAPIPool extends ChatGPTAPI {
     console.log(
       `CHATGPT ERROR REMOVING account ${accountId} from pool; unexpected error ${err.toString()}`
     )
+
+    const account = this.accountsMap[accountId]
+
+    if (!account) {
+      const error = new ChatError(
+        `ChatGPTAPIPool account not found "${accountId}"`
+      )
+      error.type = 'chatgpt:pool:account-not-found'
+      error.isFinal = true
+      error.accountId = accountId
+      throw error
+    }
+
+    try {
+      await account.api.resetSession()
+      return
+    } catch (err) {
+      console.error('error resetting session', accountId)
+    }
 
     this._accounts = this._accounts.filter((a) => a.id !== accountId)
     delete this._accountsMap[accountId]

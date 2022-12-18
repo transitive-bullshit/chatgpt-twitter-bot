@@ -19,7 +19,7 @@ async function main() {
       markdown: true
     })
 
-    await chatgptApiPool.init()
+    await chatgptApiPool.initSession()
     chatgpt = chatgptApiPool
   }
 
@@ -38,7 +38,7 @@ async function main() {
   console.log('using chatgpt account', account.id)
 
   const res2 = await getChatGPTResponse('can you follow up?', {
-    chatgpt: account.api,
+    chatgpt: account2.api,
     conversationId: res.conversationId,
     parentMessageId: res.messageId
   })
