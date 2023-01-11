@@ -54,10 +54,10 @@ export async function getChatGPTResponse(
           onProgress
         })
 
-        accountId = res.accountId
-        response = res.response
-        conversationId = res.conversationId
-        messageId = res.messageId
+        accountId = res?.accountId
+        response = res?.response
+        conversationId = res?.conversationId
+        messageId = res?.messageId
       } else {
         const res = await chatgpt.sendMessage(prompt, {
           timeoutMs,
@@ -66,9 +66,9 @@ export async function getChatGPTResponse(
           onProgress
         })
 
-        response = res.response
-        conversationId = res.conversationId
-        messageId = res.messageId
+        response = res?.response
+        conversationId = res?.conversationId
+        messageId = res?.messageId
       }
 
       break

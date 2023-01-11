@@ -6,7 +6,7 @@ specifiers:
   '@types/node': ^18.11.17
   '@types/rmfr': ^2.0.1
   ava: ^5.1.0
-  chatgpt: 3.1.0
+  chatgpt: 3.3.13
   chatgpt-token: ^0.0.1
   conf: ^10.2.0
   del-cli: ^5.0.0
@@ -50,7 +50,7 @@ specifiers:
 
 dependencies:
   '@keyv/redis': 2.5.4
-  chatgpt: 3.1.0_puppeteer@19.4.1
+  chatgpt: 3.3.13_puppeteer@19.4.1
   chatgpt-token: 0.0.1
   conf: 10.2.0
   dotenv-safe: 8.2.0
@@ -379,6 +379,26 @@ packages:
     requiresBuild: true
     dev: true
     optional: true
+
+  /@fisch0920/puppeteer-extra-plugin-recaptcha/3.6.6_puppeteer-extra@3.3.4:
+    resolution: {integrity: sha512-KI12BbqOupDm8+R21IS645L9/SzdYMVvMFdvGy2zIePJ5qPYNcqUIqBSA86hdk0vM2WJ1G5q1t7AUQoemGwbeQ==}
+    engines: {node: '>=9.11.2'}
+    peerDependencies:
+      playwright-extra: '*'
+      puppeteer-extra: '*'
+    peerDependenciesMeta:
+      playwright-extra:
+        optional: true
+      puppeteer-extra:
+        optional: true
+    dependencies:
+      debug: 4.3.4
+      merge-deep: 3.0.3
+      puppeteer-extra: 3.3.4_puppeteer@19.4.1
+      puppeteer-extra-plugin: 3.2.2_puppeteer-extra@3.3.4
+    transitivePeerDependencies:
+      - supports-color
+    dev: false
 
   /@ioredis/commands/1.2.0:
     resolution: {integrity: sha512-Sx1pU8EM64o2BrqNpEO1CNLtKQwyhuXuqyfH7oGKCk+1a33d2r5saW8zNwm3j6BTExtjrv2BxTgzzkMwts6vGg==}
@@ -945,8 +965,8 @@ packages:
       '@playwright/test': 1.28.1
     dev: false
 
-  /chatgpt/3.1.0_puppeteer@19.4.1:
-    resolution: {integrity: sha512-mYQM2xb0ENEmPT6f6hQKWBxh+xBo3ygrJ0Vk/EFyrKDg7rHuGjOp1qBX+oIyljWmggxCucR+BE7MkIFPWOqIUQ==}
+  /chatgpt/3.3.13_puppeteer@19.4.1:
+    resolution: {integrity: sha512-dxXRKr83fZFBwVOnlbIsQ9sC4zgQ/4EWEBeiqfkahoXRm7IVj9202Y5qawdiDZtN+6+rjDkCjW1oxzqgv6nN4w==}
     engines: {node: '>=18'}
     peerDependencies:
       puppeteer: '*'
@@ -958,7 +978,7 @@ packages:
       p-timeout: 6.0.0
       puppeteer: 19.4.1
       puppeteer-extra: 3.3.4_puppeteer@19.4.1
-      puppeteer-extra-plugin-recaptcha: 3.6.6_puppeteer-extra@3.3.4
+      puppeteer-extra-plugin-recaptcha: /@fisch0920/puppeteer-extra-plugin-recaptcha/3.6.6_puppeteer-extra@3.3.4
       puppeteer-extra-plugin-stealth: 2.11.1_puppeteer-extra@3.3.4
       random: 4.1.0
       remark: 14.0.2
@@ -2740,12 +2760,20 @@ packages:
       - supports-color
     dev: false
 
-  /mdast-util-to-markdown/1.4.0:
-    resolution: {integrity: sha512-IjXARf/O8VGx/pc5SZ7syfydq1DYL9vd92orsG5U0b4GNCmAvXzu+n7sbzfIKrXwB0AVrYk3NV2kXl0AIi9LCA==}
+  /mdast-util-phrasing/3.0.0:
+    resolution: {integrity: sha512-S+QYsDRLkGi8U7o5JF1agKa/sdP+CNGXXLqC17pdTVL8FHHgQEiwFGa9yE5aYtUxNiFGYoaDy9V1kC85Sz86Gg==}
+    dependencies:
+      '@types/mdast': 3.0.10
+      unist-util-is: 5.1.1
+    dev: false
+
+  /mdast-util-to-markdown/1.5.0:
+    resolution: {integrity: sha512-bbv7TPv/WC49thZPg3jXuqzuvI45IL2EVAr/KxF0BSdHsU0ceFHOmwQn6evxAh1GaoK/6GQ1wp4R4oW2+LFL/A==}
     dependencies:
       '@types/mdast': 3.0.10
       '@types/unist': 2.0.6
       longest-streak: 3.1.0
+      mdast-util-phrasing: 3.0.0
       mdast-util-to-string: 3.1.0
       micromark-util-decode-string: 1.0.2
       unist-util-visit: 4.1.1
@@ -3529,26 +3557,6 @@ packages:
       - utf-8-validate
     dev: false
 
-  /puppeteer-extra-plugin-recaptcha/3.6.6_puppeteer-extra@3.3.4:
-    resolution: {integrity: sha512-SVbmL+igGX8m0Qg9dn85trWDghbfUCTG/QUHYscYx5XgMZVVb0/v0a6MqbPdHoKmBx5BS2kLd6rorMlncMcXdw==}
-    engines: {node: '>=9.11.2'}
-    peerDependencies:
-      playwright-extra: '*'
-      puppeteer-extra: '*'
-    peerDependenciesMeta:
-      playwright-extra:
-        optional: true
-      puppeteer-extra:
-        optional: true
-    dependencies:
-      debug: 4.3.4
-      merge-deep: 3.0.3
-      puppeteer-extra: 3.3.4_puppeteer@19.4.1
-      puppeteer-extra-plugin: 3.2.2_puppeteer-extra@3.3.4
-    transitivePeerDependencies:
-      - supports-color
-    dev: false
-
   /puppeteer-extra-plugin-stealth/2.11.1_puppeteer-extra@3.3.4:
     resolution: {integrity: sha512-n0wdC0Ilc9tk5L6FWLyd0P2gT8b2fp+2NuB+KB0oTSw3wXaZ0D6WNakjJsayJ4waGzIJFCUHkmK9zgx5NKMoFw==}
     engines: {node: '>=8'}
@@ -3792,7 +3800,7 @@ packages:
     resolution: {integrity: sha512-6wV3pvbPvHkbNnWB0wdDvVFHOe1hBRAx1Q/5g/EpH4RppAII6J8Gnwe7VbHuXaoKIF6LAg6ExTel/+kNqSQ7lw==}
     dependencies:
       '@types/mdast': 3.0.10
-      mdast-util-to-markdown: 1.4.0
+      mdast-util-to-markdown: 1.5.0
       unified: 10.1.2
     dev: false
 

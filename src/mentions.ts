@@ -334,10 +334,10 @@ export function isValidMention(
   const repliedToTweetRef = mention.referenced_tweets?.find(
     (t) => t.type === 'replied_to'
   )
-  const isReply = !!repliedToTweetRef
   const repliedToTweet = repliedToTweetRef
     ? batch.tweets[repliedToTweetRef.id]
     : null
+  const isReply = !!repliedToTweetRef
   if (repliedToTweet) {
     repliedToTweet.prompt = getPrompt(repliedToTweet.text)
     const subMentions = getNumMentionsInText(repliedToTweet.text, {
@@ -346,6 +346,10 @@ export function isValidMention(
       )
     })
     repliedToTweet.numMentions = subMentions.numMentions
+  }
+
+  if (isReply && !repliedToTweet) {
+    return false
   }
 
   let text = mention.text
@@ -370,6 +374,15 @@ export function isValidMention(
     if (!mention.prompt) {
       return false
     }
+  }
+
+  const promptL = mention.prompt.toLowerCase()
+  if (
+    promptL.includes('too many requests, please slow down') ||
+    promptL.includes('too many requests in 1 hour. try again later')
+  ) {
+    // someone is playing w/ the bot...
+    return false
   }
 
   if (

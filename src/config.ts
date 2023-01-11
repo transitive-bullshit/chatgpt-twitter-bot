@@ -20,7 +20,11 @@ export const getTwitterUserMentionsCachePathForUserById = ({
 
 export const defaultMaxNumMentionsToProcessPerBatch = 10
 
-export const tweetIgnoreList = new Set(['1599344387401863174'])
+// tweets that try to break the bot...
+export const tweetIgnoreList = new Set([
+  '1599344387401863174',
+  '1604326985416613888'
+])
 
 // Used by the author(s) for faster testing and feedback
 export const priorityUsersList = new Set([

@@ -103,6 +103,9 @@ export async function respondToNewMentions({
   }
 
   const isChatGPTPool = chatgpt instanceof ChatGPTAPIPool
+  const concurrency = isChatGPTPool
+    ? Math.min((chatgpt as ChatGPTAPIPool).accounts.length, 3)
+    : 1
 
   const results = (
     await pMap(
@@ -434,7 +437,7 @@ export async function respondToNewMentions({
             } else if (err.type === 'chatgpt:pool:rate-limit') {
               // That account will be taken out of the pool and put on cooldown, but
               // for a hard 429, let's still rate limit ourselves to avoid IP bans.
-              session.isRateLimited = true
+              // session.isRateLimited = true
             } else if (err.type === 'chatgpt:pool:account-not-found') {
               console.error(err.toString())
 
@@ -528,7 +531,7 @@ export async function respondToNewMentions({
         }
       },
       {
-        concurrency: isChatGPTPool ? 4 : 1
+        concurrency
       }
     )
   ).filter(Boolean)

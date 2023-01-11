@@ -87,6 +87,7 @@ export class ChatGPTAPIPool extends ChatGPTAPIBrowser {
     // child process management
     // https://stackoverflow.com/questions/9768444/possible-eventemitter-memory-leak-detected
     process.setMaxListeners(0)
+    // emitter.setMaxListeners(0)
 
     this._accounts = (
       await pMap(
@@ -138,6 +139,11 @@ export class ChatGPTAPIPool extends ChatGPTAPIBrowser {
               `ChatGPTAPIPool error obtaining auth for account "${accountId}"`,
               err.toString()
             )
+
+            if (api) {
+              await api.closeSession()
+            }
+
             return null
           }
         },
@@ -376,9 +382,11 @@ export class ChatGPTAPIPool extends ChatGPTAPIBrowser {
           responseL.includes('too many requests, please slow down') ||
           responseL.includes('too many requests in 1 hour. try again later')
         ) {
+          console.log('chatgpt COOLDOWN', account.id, 'text response 1')
           this._accountsOnCooldown.set(account.id, true, {
             maxAge: this._accountCooldownMs * 5
           })
+
           return null
         }
 
@@ -398,6 +406,7 @@ export class ChatGPTAPIPool extends ChatGPTAPIBrowser {
             }
           }
 
+          console.log('chatgpt COOLDOWN', account.id, 'text response 2')
           this._accountsOnCooldown.set(account.id, true, {
             maxAge: this._accountCooldownMs * 2
           })
@@ -423,6 +432,7 @@ export class ChatGPTAPIPool extends ChatGPTAPIBrowser {
           }
 
           // ChatGPT timed out
+          console.log('chatgpt COOLDOWN', account.id, 'timeout')
           this._accountsOnCooldown.set(account.id, true)
 
           const error = new ChatError(err.toString())
@@ -433,12 +443,45 @@ export class ChatGPTAPIPool extends ChatGPTAPIBrowser {
         } else if (err instanceof ChatGPTError) {
           if (err.statusCode === 429) {
             console.log('\nchatgpt rate limit', account.id, '\n')
+
+            if (++numRetries <= 1) {
+              console.log(
+                `chatgpt account ${
+                  account.id
+                } ${err.toString()}; refreshing session`
+              )
+
+              if (await this.tryRefreshSessionForAccount(account.id)) {
+                continue
+              }
+            }
+
+            console.log('chatgpt COOLDOWN', account.id, '429')
             this._accountsOnCooldown.set(account.id, true, {
-              maxAge: this._accountCooldownMs * 10
+              maxAge: this._accountCooldownMs * 3
             })
 
             const error = new ChatError(err.toString())
             error.type = 'chatgpt:pool:rate-limit'
+            error.isFinal = false
+            error.accountId = account.id
+            throw error
+          } else if (err.statusCode === 403) {
+            if (++numRetries <= 1) {
+              console.log(
+                `chatgpt account ${
+                  account.id
+                } ${err.toString()}; refreshing session`
+              )
+
+              if (await this.tryRefreshSessionForAccount(account.id)) {
+                continue
+              }
+            }
+
+            console.log('\nchatgpt 403', account.id, '\n')
+            const error = new ChatError(err.toString())
+            error.type = 'chatgpt:pool:account-on-cooldown'
             error.isFinal = false
             error.accountId = account.id
             throw error
@@ -459,6 +502,7 @@ export class ChatGPTAPIPool extends ChatGPTAPIBrowser {
               }
             }
 
+            console.log('chatgpt COOLDOWN', account.id, err.statusCode)
             this._accountsOnCooldown.set(account.id, true, {
               maxAge: this._accountCooldownMs * 2
             })
@@ -497,8 +541,14 @@ export class ChatGPTAPIPool extends ChatGPTAPIBrowser {
               }
             }
 
+            console.log(
+              'chatgpt COOLDOWN',
+              account.id,
+              'unexpected error',
+              err.toString()
+            )
             this._accountsOnCooldown.set(account.id, true, {
-              maxAge: this._accountCooldownMs * 5
+              maxAge: this._accountCooldownMs * 1
             })
           }
         } else if (err.type === 'chatgpt:pool:account-on-cooldown') {
@@ -564,6 +614,10 @@ export class ChatGPTAPIPool extends ChatGPTAPIBrowser {
       return
     } catch (err) {
       console.error('error resetting session', accountId)
+
+      if (account.api) {
+        await account.api.closeSession()
+      }
     }
 
     this._accounts = this._accounts.filter((a) => a.id !== accountId)
