@@ -24,11 +24,17 @@ export interface ChatGPTInteraction {
   promptUserId: string
   promptUsername: string
   promptUrl?: string
+  promptLikes?: number
+  promptRetweets?: number
+  promptReplies?: number
 
   response?: string
   responseTweetIds?: string[]
   responseMediaId?: string
   responseUrl?: string
+  responseLikes?: number
+  responseRetweets?: number
+  responseReplies?: number
 
   chatgptConversationId?: string
   chatgptParentMessageId?: string

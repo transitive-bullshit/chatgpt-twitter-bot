@@ -1,5 +1,6 @@
 import { ChatGPTAPIBrowser } from 'chatgpt'
 import delay from 'delay'
+import random from 'random'
 import { Client as TwitterClient, auth } from 'twitter-api-sdk'
 import { TwitterApi } from 'twitter-api-v2'
 
@@ -31,6 +32,7 @@ async function main() {
     process.env.MAX_NUM_MENTIONS_TO_PROCESS,
     10
   )
+  const proxies = (process.env.PROXIES || '').split(',')
 
   const refreshToken = defaultRefreshToken || config.get('refreshToken')
   // const accessToken = undefined // config.get('accessToken')
@@ -93,11 +95,22 @@ async function main() {
   let chatgpt: ChatGPTAPIBrowser
 
   if (chatgptAccounts?.length) {
-    console.log(
-      `Initializing ChatGPTAPIPool with ${chatgptAccounts.length} accounts`
-    )
+    if (proxies?.length) {
+      const offset = random.int(0, proxies.length - 1)
 
-    const chatgptApiPool = new ChatGPTAPIPool(chatgptAccounts, {
+      for (let i = 0; i < chatgptAccounts.length; ++i) {
+        const account = chatgptAccounts[i]
+        const proxy = proxies[(offset + i) % proxies.length]
+
+        if (proxy && !account.proxyServer) {
+          account.proxyServer = proxy
+        }
+      }
+    }
+    const accounts = debugTweet ? chatgptAccounts.slice(0, 1) : chatgptAccounts
+    console.log(`Initializing ChatGPTAPIPool with ${accounts.length} accounts`)
+
+    const chatgptApiPool = new ChatGPTAPIPool(accounts, {
       markdown
     })
 
@@ -107,10 +120,13 @@ async function main() {
   } else {
     console.log(`Initializing a single instance of ChatGPTAPI`)
 
+    const proxyServer = random.choice(proxies)
+
     chatgpt = new ChatGPTAPIBrowser({
       email: process.env.OPENAI_EMAIL,
       password: process.env.OPENAI_PASSWORD,
-      markdown
+      markdown,
+      proxyServer
     })
 
     await chatgpt.initSession()

@@ -24,6 +24,7 @@ export interface ChatGPTAPIAccountInit {
   email: string
   password: string
   isGoogleLogin?: boolean
+  proxyServer?: string
 }
 
 interface ChatGPTAPIAccount extends ChatGPTAPIAccountInit {
@@ -101,6 +102,8 @@ export class ChatGPTAPIPool extends ChatGPTAPIBrowser {
               console.error('invalid chatgpt account', accountInit)
               return null
             }
+
+            console.log('initializing chatgpt account', accountInit)
 
             api = new ChatGPTAPIBrowser({
               ...accountInit,

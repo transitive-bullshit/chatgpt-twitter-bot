@@ -6,13 +6,14 @@ specifiers:
   '@types/node': ^18.11.17
   '@types/rmfr': ^2.0.1
   ava: ^5.1.0
-  chatgpt: 3.3.13
+  chatgpt: 3.4.2
   chatgpt-token: ^0.0.1
   conf: ^10.2.0
   del-cli: ^5.0.0
   delay: ^5.0.0
   dotenv-safe: ^8.2.0
   execa: ^6.1.0
+  fast-json-stable-stringify: ^2.1.0
   franc: ^6.1.0
   highlight.js: ^11.7.0
   husky: ^8.0.2
@@ -50,11 +51,12 @@ specifiers:
 
 dependencies:
   '@keyv/redis': 2.5.4
-  chatgpt: 3.3.13_puppeteer@19.4.1
+  chatgpt: 3.4.2_puppeteer@19.4.1
   chatgpt-token: 0.0.1
   conf: 10.2.0
   dotenv-safe: 8.2.0
   execa: 6.1.0
+  fast-json-stable-stringify: 2.1.0
   franc: 6.1.0
   highlight.js: 11.7.0
   ioredis: 5.2.4
@@ -965,8 +967,8 @@ packages:
       '@playwright/test': 1.28.1
     dev: false
 
-  /chatgpt/3.3.13_puppeteer@19.4.1:
-    resolution: {integrity: sha512-dxXRKr83fZFBwVOnlbIsQ9sC4zgQ/4EWEBeiqfkahoXRm7IVj9202Y5qawdiDZtN+6+rjDkCjW1oxzqgv6nN4w==}
+  /chatgpt/3.4.2_puppeteer@19.4.1:
+    resolution: {integrity: sha512-w/4IfYrBW8nZ01tI8kG9baqS5VUab3Ae9iD/pk+enr2Gn9tGE7MWLoNWs+qb/X3uCvmj48yEqCk71DycFgHA2g==}
     engines: {node: '>=18'}
     peerDependencies:
       puppeteer: '*'
@@ -1800,6 +1802,10 @@ packages:
       merge2: 1.4.1
       micromatch: 4.0.5
     dev: true
+
+  /fast-json-stable-stringify/2.1.0:
+    resolution: {integrity: sha512-lhd/wF+Lk98HZoTCtlVraHtfh5XYijIjalXck7saUtuanSDyLMxnHhSXEDJqHxD7msR8D0uCmqlkwjCV8xvwHw==}
+    dev: false
 
   /fastq/1.14.0:
     resolution: {integrity: sha512-eR2D+V9/ExcbF9ls441yIuN6TI2ED1Y2ZcA5BmMtJsOkWOFRJQ0Jt0g1UwqXJJVAb+V+umH5Dfr8oh4EVP7VVg==}

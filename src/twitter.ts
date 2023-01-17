@@ -242,3 +242,24 @@ async function getUserByIdImpl(
   const res = await twitterV1.users({ user_id: userId })
   return res[0]
 }
+
+const getTweetsByIdsThrottle = pThrottle({
+  limit: 1,
+  interval: 1005,
+  strict: true
+})
+
+export const getTweetsByIds = pMemoize(
+  getTweetsByIdsThrottle(getTweetsByIdsImpl)
+)
+
+async function getTweetsByIdsImpl(
+  tweetIds: string | string[],
+  {
+    twitterV1
+  }: {
+    twitterV1: types.TwitterClientV1
+  }
+) {
+  return twitterV1.tweets(tweetIds)
+}

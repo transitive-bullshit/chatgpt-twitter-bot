@@ -1,116 +1,164 @@
 import { markdownToText } from 'chatgpt'
+import stringify from 'fast-json-stable-stringify'
 import pMap from 'p-map'
+import { InterceptResolutionAction } from 'puppeteer'
 import { Client as TwitterClient, auth } from 'twitter-api-sdk'
-import { TwitterApi } from 'twitter-api-v2'
+import { TweetV1, TwitterApi } from 'twitter-api-v2'
 
 import * as types from './types'
 import config, { redisNamespace, twitterBotUserId } from './config'
-import { redis } from './keyv'
+import { keyv, redis } from './keyv'
+import { getTweetsByIds } from './twitter'
 import { loadUserMentionCacheFromDiskByUserId } from './twitter-mentions'
 
 async function main() {
   // await loadUserMentionCacheFromDiskByUserId({ userId: twitterBotUserId })
 
-  const refreshToken =
-    process.env.TWITTER_OAUTH_REFRESH_TOKEN || config.get('refreshToken')
   // const refreshToken = config.get('refreshToken')
-  const authToken = refreshToken ? { refresh_token: refreshToken } : undefined
-  const authClient = new auth.OAuth2User({
-    client_id: process.env.TWITTER_CLIENT_ID,
-    client_secret: process.env.TWITTER_CLIENT_SECRET,
-    callback: 'http://127.0.0.1:3000/callback',
-    scopes: ['tweet.read', 'users.read', 'offline.access', 'tweet.write'],
-    token: authToken
-  })
 
-  async function refreshTwitterAuthToken() {
-    console.log('refreshing twitter access token')
-    const { token } = await authClient.refreshAccessToken()
-    config.set('refreshToken', token.refresh_token)
-    console.log('twitter access token', token)
-    return token
-  }
+  // const authToken = refreshToken ? { refresh_token: refreshToken } : undefined
+  // const authClient = new auth.OAuth2User({
+  //   client_id: process.env.TWITTER_CLIENT_ID,
+  //   client_secret: process.env.TWITTER_CLIENT_SECRET,
+  //   callback: 'http://127.0.0.1:3000/callback',
+  //   scopes: ['tweet.read', 'users.read', 'offline.access', 'tweet.write'],
+  //   token: authToken
+  // })
 
-  await refreshTwitterAuthToken()
+  // async function refreshTwitterAuthToken() {
+  //   // if (debugTweet) {
+  //   //   console.log('skipping refresh of twitter access token due to DEBUG_TWEET')
+  //   //   return
+  //   // }
 
+  //   console.log('refreshing twitter access token')
+  //   try {
+  //     const { token } = await authClient.refreshAccessToken()
+  //     config.set('refreshToken', token.refresh_token)
+  //     // config.set('accessToken', token.access_token)
+  //     return token
+  //   } catch (err) {
+  //     console.error('unexpected error refreshing twitter access token', err)
+  //     return null
+  //   }
+  // }
+
+  // await refreshTwitterAuthToken()
+
+  // // Twitter API v2 using OAuth 2.0
   // const twitter = new TwitterClient(authClient)
 
   // Twitter API v1 using OAuth 1.1a?
   // NOTE: this is required only to upload media since that doesn't seeem to be
   // supported with the Twitter API v2
-  // const twitterApi = new TwitterApi({
-  //   appKey: process.env.TWITTER_API_KEY,
-  //   appSecret: process.env.TWITTER_API_SECRET_KEY,
-  //   accessToken: process.env.TWITTER_API_ACCESS_TOKEN,
-  //   accessSecret: process.env.TWITTER_API_ACCESS_SECRET
-  // })
-  // const { v1: twitterV1 } = twitterApi
+  const twitterApi = new TwitterApi({
+    appKey: process.env.TWITTER_API_KEY,
+    appSecret: process.env.TWITTER_API_SECRET_KEY,
+    accessToken: process.env.TWITTER_API_ACCESS_TOKEN,
+    accessSecret: process.env.TWITTER_API_ACCESS_SECRET
+  })
+  const { v1: twitterV1 } = twitterApi
 
-  // // const text = 'foo...'
-  // // const mediaId = await twitterV1.uploadMedia('media/demo.jpg', {
-  // //   type: 'jpg',
-  // //   mimeType: 'image/jpeg',
-  // //   target: 'tweet'
-  // // })
-  // // const res = await twitterV1.createMediaMetadata(mediaId, {
-  // //   alt_text: {
-  // //     text: (text + text + text + text + text + text).slice(0, 1000)
-  // //   }
-  // // })
-  // // console.log(res)
-  // // return res
+  console.log('fetching redis interactions')
+  const keys = await redis.keys(`${redisNamespace}:*`)
+  const records = await redis.mget(keys)
+  const interactions: types.ChatGPTInteraction[] = records
+    .map((r) => JSON.parse(r)?.value)
+    .filter(Boolean)
+    .filter(
+      (interaction: types.ChatGPTInteraction) =>
+        interaction.role === 'assistant' && !interaction.error
+    )
+  // console.log(interactions)
 
-  // console.log('iterating')
-  // const keys = await redis.keys(`${redisNamespace}:*`)
-  // const records = await redis.mget(keys)
-  // const records2 = records.map((r) => JSON.parse(r))
-  // await pMap(
-  //   records2.slice(500, 505),
-  //   async (record) => {
-  //     try {
-  //       const interaction: types.ChatGPTInteraction = record.value
-  //       if (interaction.role === 'assistant' && !interaction.error) {
-  //         const mediaId = interaction.responseMediaId
-  //         const response = interaction.response
+  const batches: types.ChatGPTInteraction[][] = []
+  const batchSize = 50
+  const numBatches = Math.ceil(interactions.length / batchSize)
+  for (let i = 0; i < numBatches; ++i) {
+    const offset = i * batchSize
+    batches.push(interactions.slice(offset, offset + batchSize))
+  }
 
-  //         if (mediaId && response) {
-  //           const text = markdownToText(response)
-  //           console.log(interaction.responseUrl, mediaId, text)
-  //           // await twitterV1.createMediaMetadata(mediaId, {
-  //           //   alt_text: {
-  //           //     text
-  //           //   }
-  //           // })
-  //         }
-  //       }
-  //     } catch (err) {
-  //       console.warn('error creating media metadata', err.toString())
-  //     }
-  //   },
-  //   {
-  //     concurrency: 1
-  //   }
-  // )
+  console.log()
+  console.log('processing', numBatches, 'batches')
+  console.log()
 
-  // const { data: user } = await twitter.users.findUserByUsername('Yaviendil', {
-  // const { data: user } = await twitter.users.findMyUser({
-  //   'user.fields': [
-  //     'entities',
-  //     'description',
-  //     'profile_image_url',
-  //     'protected',
-  //     'public_metrics'
-  //   ]
-  // })
+  await pMap(
+    batches,
+    async (batch, index) => {
+      try {
+        const tweetIds = Array.from(
+          new Set(
+            batch
+              .flatMap((interaction) => [
+                interaction.promptTweetId,
+                interaction.responseTweetIds[
+                  interaction.responseTweetIds?.length - 1
+                ]
+              ])
+              .filter(Boolean)
+          )
+        )
 
-  // if (!user?.id) {
-  //   throw new Error('twitter error unable to fetch current user')
-  // }
+        console.log(`(batch ${index}/${numBatches})`, 'tweets', tweetIds.length)
 
-  // console.log(user)
+        const tweets = await getTweetsByIds(tweetIds, { twitterV1 })
+        const tweetsMap = tweets.reduce<Record<string, TweetV1>>(
+          (acc, tweet) => ({ ...acc, [tweet.id_str]: tweet }),
+          {}
+        )
 
-  // const d = await twitter.tweets.usersIdTweets(user.id)
-  // console.log(d)
+        // console.log('tweets', tweets.length)
+
+        for (const interaction of batch) {
+          // console.log(interaction)
+          const original = stringify(interaction)
+
+          if (interaction.role === 'assistant' && !interaction.error) {
+            const promptTweetId = interaction.promptTweetId
+            if (promptTweetId) {
+              const tweet = tweetsMap[promptTweetId]
+              if (tweet) {
+                // console.log('prompt', tweet)
+                interaction.promptLikes = tweet.favorite_count ?? 0
+                interaction.promptRetweets = tweet.retweet_count ?? 0
+                interaction.promptReplies = tweet.reply_count ?? 0
+              }
+            }
+
+            const responseTweetId =
+              interaction.responseTweetIds[
+                interaction.responseTweetIds?.length - 1
+              ]
+            if (responseTweetId) {
+              const tweet = tweetsMap[responseTweetId]
+              if (tweet) {
+                // console.log('response', tweet)
+                interaction.responseLikes = tweet.favorite_count ?? 0
+                interaction.responseRetweets = tweet.retweet_count ?? 0
+                interaction.responseReplies = tweet.reply_count ?? 0
+
+                const updated = stringify(interaction)
+                if (original !== updated) {
+                  console.log('update', interaction)
+                  await keyv.set(promptTweetId, interaction)
+                }
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn(
+          'error processing interactions',
+          `(batch ${index}/${numBatches})`,
+          err.toString()
+        )
+      }
+    },
+    {
+      concurrency: 2
+    }
+  )
 }
 
 main()

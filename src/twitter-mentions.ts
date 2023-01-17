@@ -165,6 +165,17 @@ export class TwitterUserMentionsCache {
   }
 }
 
+export function getMentionsCacheForUser(userId: string) {
+  let cache = globalUserIdMentionsCache[userId]
+  if (!cache) {
+    cache = globalUserIdMentionsCache[userId] = new TwitterUserMentionsCache({
+      userId
+    })
+  }
+
+  return cache
+}
+
 /**
  * Fetches the latest mentions of the given `userId` on Twitter.
  *
@@ -193,12 +204,7 @@ export async function getTwitterUserIdMentions(
     sinceMentionId: originalSinceMentionId
   }
 
-  let cache = globalUserIdMentionsCache[userId]
-  if (!cache) {
-    cache = globalUserIdMentionsCache[userId] = new TwitterUserMentionsCache({
-      userId
-    })
-  }
+  const cache = getMentionsCacheForUser(userId)
 
   if (!noCache) {
     const cachedResult = cache.getUserMentionsSince(
@@ -249,44 +255,54 @@ export async function getTwitterUserIdMentions(
       sinceMentionId: result.sinceMentionId
     })
 
-    const mentionsQuery = twitter.tweets.usersIdMentions(userId, {
-      ...opts,
-      since_id: result.sinceMentionId
-    })
+    try {
+      const mentionsQuery = twitter.tweets.usersIdMentions(userId, {
+        ...opts,
+        since_id: result.sinceMentionId
+      })
 
-    let numMentionsInQuery = 0
-    let numPagesInQuery = 0
-    for await (const page of mentionsQuery) {
-      numPagesInQuery++
+      let numMentionsInQuery = 0
+      let numPagesInQuery = 0
+      for await (const page of mentionsQuery) {
+        numPagesInQuery++
 
-      if (page.data?.length) {
-        numMentionsInQuery += page.data?.length
-        result.mentions = result.mentions.concat(page.data)
+        if (page.data?.length) {
+          numMentionsInQuery += page.data?.length
+          result.mentions = result.mentions.concat(page.data)
 
-        for (const mention of page.data) {
-          result.sinceMentionId = maxTwitterId(
-            result.sinceMentionId,
-            mention.id
-          )
+          for (const mention of page.data) {
+            result.sinceMentionId = maxTwitterId(
+              result.sinceMentionId,
+              mention.id
+            )
+          }
+        }
+
+        if (page.includes?.users?.length) {
+          for (const user of page.includes.users) {
+            result.users[user.id] = user
+          }
+        }
+
+        if (page.includes?.tweets?.length) {
+          for (const tweet of page.includes.tweets) {
+            result.tweets[tweet.id] = tweet
+          }
         }
       }
 
-      if (page.includes?.users?.length) {
-        for (const user of page.includes.users) {
-          result.users[user.id] = user
-        }
+      console.log({ numMentionsInQuery, numPagesInQuery })
+      if (numMentionsInQuery < 5 || !resolveAllMentions) {
+        break
       }
+    } catch (err) {
+      console.error('twitter API error fetching user mentions', err)
 
-      if (page.includes?.tweets?.length) {
-        for (const tweet of page.includes.tweets) {
-          result.tweets[tweet.id] = tweet
-        }
+      if (result.mentions.length) {
+        break
+      } else {
+        throw err
       }
-    }
-
-    console.log({ numMentionsInQuery, numPagesInQuery })
-    if (numMentionsInQuery < 5 || !resolveAllMentions) {
-      break
     }
 
     console.log('pausing for twitter...')

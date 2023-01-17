@@ -35,11 +35,12 @@
   },
   "dependencies": {
     "@keyv/redis": "^2.5.4",
-    "chatgpt": "3.3.13",
+    "chatgpt": "3.4.2",
     "chatgpt-token": "^0.0.1",
     "conf": "^10.2.0",
     "dotenv-safe": "^8.2.0",
     "execa": "^6.1.0",
+    "fast-json-stable-stringify": "^2.1.0",
     "franc": "^6.1.0",
     "highlight.js": "^11.7.0",
     "ioredis": "^5.2.4",

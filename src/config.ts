@@ -30,8 +30,7 @@ export const tweetIgnoreList = new Set([
 export const priorityUsersList = new Set([
   '327034465', // transitive_bs
   '1235525929335689217', // LofiGrind (my test acct)
-  '1598922281434103808', // ChatGPTBot,
-  '1019099485153030144' // Yaviendil (TODO: temporary)
+  '1598922281434103808' // ChatGPTBot
 ])
 
 export const languageAllowList = new Set([
