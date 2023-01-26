@@ -71,6 +71,10 @@ async function main() {
     )
   // console.log(interactions)
 
+  // interactions.sort((a, b) => (b.numFollowers || 0) - (a.numFollowers || 0))
+  // console.log(JSON.stringify(interactions.slice(0, 1000), null, 2))
+
+  // update tweet stats in batches
   const batches: types.ChatGPTInteraction[][] = []
   const batchSize = 50
   const numBatches = Math.ceil(interactions.length / batchSize)

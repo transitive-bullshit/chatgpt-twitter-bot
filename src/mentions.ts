@@ -61,6 +61,8 @@ export async function getTweetMentionsBatch({
 
   const numMentionsFetched = batch.mentions.length
 
+  // debugTweet.split(',').
+
   // Filter out invalid mentions
   batch.mentions = batch.mentions.filter((mention) =>
     isValidMention(mention, {
