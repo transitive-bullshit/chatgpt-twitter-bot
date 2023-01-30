@@ -27,6 +27,8 @@ export interface ChatGPTInteraction {
   promptLikes?: number
   promptRetweets?: number
   promptReplies?: number
+  promptDate?: string
+  promptLanguage?: string
 
   response?: string
   responseTweetIds?: string[]
@@ -35,6 +37,7 @@ export interface ChatGPTInteraction {
   responseLikes?: number
   responseRetweets?: number
   responseReplies?: number
+  responseDate?: string
 
   chatgptConversationId?: string
   chatgptParentMessageId?: string

@@ -1,5 +1,6 @@
 import { markdownToText } from 'chatgpt'
 import stringify from 'fast-json-stable-stringify'
+import HuggingFace from 'huggingface'
 import pMap from 'p-map'
 import { InterceptResolutionAction } from 'puppeteer'
 import { Client as TwitterClient, auth } from 'twitter-api-sdk'
@@ -59,6 +60,8 @@ async function main() {
   })
   const { v1: twitterV1 } = twitterApi
 
+  const hf = new HuggingFace(process.env.HUGGING_FACE_API_KEY)
+
   console.log('fetching redis interactions')
   const keys = await redis.keys(`${redisNamespace}:*`)
   const records = await redis.mget(keys)
@@ -114,43 +117,86 @@ async function main() {
 
         // console.log('tweets', tweets.length)
 
-        for (const interaction of batch) {
-          // console.log(interaction)
-          const original = stringify(interaction)
+        await pMap(
+          batch,
+          async (interaction) => {
+            try {
+              // console.log(interaction)
+              const original = stringify(interaction)
 
-          if (interaction.role === 'assistant' && !interaction.error) {
-            const promptTweetId = interaction.promptTweetId
-            if (promptTweetId) {
-              const tweet = tweetsMap[promptTweetId]
-              if (tweet) {
-                // console.log('prompt', tweet)
-                interaction.promptLikes = tweet.favorite_count ?? 0
-                interaction.promptRetweets = tweet.retweet_count ?? 0
-                interaction.promptReplies = tweet.reply_count ?? 0
-              }
-            }
+              if (interaction.role === 'assistant' && !interaction.error) {
+                try {
+                  const model = 'papluca/xlm-roberta-base-language-detection'
+                  const languageScores = await hf.textClassification({
+                    model,
+                    inputs: interaction.prompt
+                  })
+                  console.log(
+                    'lang',
+                    interaction.prompt,
+                    languageScores.slice(0, 3)
+                  )
+                  const promptLanguage = languageScores[0].label
+                  interaction.promptLanguage = promptLanguage
+                } catch (err) {
+                  console.warn('error detecting language', err.toString())
+                }
 
-            const responseTweetId =
-              interaction.responseTweetIds[
-                interaction.responseTweetIds?.length - 1
-              ]
-            if (responseTweetId) {
-              const tweet = tweetsMap[responseTweetId]
-              if (tweet) {
-                // console.log('response', tweet)
-                interaction.responseLikes = tweet.favorite_count ?? 0
-                interaction.responseRetweets = tweet.retweet_count ?? 0
-                interaction.responseReplies = tweet.reply_count ?? 0
+                const promptTweetId = interaction.promptTweetId
+                if (promptTweetId) {
+                  const tweet = tweetsMap[promptTweetId]
+                  if (tweet) {
+                    // console.log('prompt', tweet)
+                    interaction.promptLikes = tweet.favorite_count ?? 0
+                    interaction.promptRetweets = tweet.retweet_count ?? 0
+                    interaction.promptReplies = tweet.reply_count ?? 0
+                    if (tweet.created_at) {
+                      interaction.promptDate = new Date(
+                        tweet.created_at
+                      ).toISOString()
+                    }
+                  }
+                }
 
-                const updated = stringify(interaction)
-                if (original !== updated) {
-                  console.log('update', interaction)
-                  await keyv.set(promptTweetId, interaction)
+                const responseTweetId =
+                  interaction.responseTweetIds[
+                    interaction.responseTweetIds?.length - 1
+                  ]
+                if (responseTweetId) {
+                  const tweet = tweetsMap[responseTweetId]
+                  if (tweet) {
+                    // console.log('response', tweet)
+                    interaction.responseLikes = tweet.favorite_count ?? 0
+                    interaction.responseRetweets = tweet.retweet_count ?? 0
+                    interaction.responseReplies = tweet.reply_count ?? 0
+
+                    if (tweet.created_at) {
+                      interaction.responseDate = new Date(
+                        tweet.created_at
+                      ).toISOString()
+                    }
+
+                    const updated = stringify(interaction)
+                    if (original !== updated) {
+                      console.log('update', interaction)
+                      await keyv.set(promptTweetId, interaction)
+                    }
+                  }
                 }
               }
+            } catch (err) {
+              console.warn(
+                'error processing interaction',
+                `(batch ${index}/${numBatches})`,
+                interaction,
+                err.toString()
+              )
             }
+          },
+          {
+            concurrency: 8
           }
-        }
+        )
       } catch (err) {
         console.warn(
           'error processing interactions',
