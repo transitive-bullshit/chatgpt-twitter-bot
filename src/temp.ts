@@ -131,13 +131,17 @@ async function main() {
                     model,
                     inputs: interaction.prompt
                   })
+
                   console.log(
                     'lang',
                     interaction.prompt,
                     languageScores.slice(0, 3)
                   )
+
                   const promptLanguage = languageScores[0].label
+                  const promptLanguageScore = languageScores[0].score
                   interaction.promptLanguage = promptLanguage
+                  interaction.promptLanguageScore = promptLanguageScore
                 } catch (err) {
                   console.warn('error detecting language', err.toString())
                 }
