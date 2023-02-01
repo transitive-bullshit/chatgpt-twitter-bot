@@ -1,3 +1,5 @@
+import fs from 'node:fs/promises'
+
 import type { ChatGPTAPIBrowser, ChatResponse } from 'chatgpt'
 import winkNLPModel from 'wink-eng-lite-web-model'
 import winkNLP from 'wink-nlp'
@@ -240,4 +242,8 @@ export function getTweetUrl({
   if (username && id) {
     return `https://twitter.com/${username}/status/${id}`
   }
+}
+
+export async function saveJsonFile(filePath: string, json: any) {
+  return fs.writeFile(filePath, JSON.stringify(json, null, 2), 'utf-8')
 }

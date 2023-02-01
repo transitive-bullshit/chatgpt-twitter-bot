@@ -1,57 +1,23 @@
+import path from 'node:path'
+
 import { markdownToText } from 'chatgpt'
 import stringify from 'fast-json-stable-stringify'
-import HuggingFace from 'huggingface'
 import pMap from 'p-map'
 import { InterceptResolutionAction } from 'puppeteer'
 import { Client as TwitterClient, auth } from 'twitter-api-sdk'
 import { TweetV1, TwitterApi } from 'twitter-api-v2'
 
 import * as types from './types'
-import config, { redisNamespace, twitterBotUserId } from './config'
+import config, { cacheDir, redisNamespace, twitterBotUserId } from './config'
+import { detectLanguage } from './huggingface'
 import { keyv, redis } from './keyv'
 import { getTweetsByIds } from './twitter'
 import { loadUserMentionCacheFromDiskByUserId } from './twitter-mentions'
+import { saveJsonFile } from './utils'
 
 async function main() {
-  // await loadUserMentionCacheFromDiskByUserId({ userId: twitterBotUserId })
+  const analyze = !!process.env.ANALYZE
 
-  // const refreshToken = config.get('refreshToken')
-
-  // const authToken = refreshToken ? { refresh_token: refreshToken } : undefined
-  // const authClient = new auth.OAuth2User({
-  //   client_id: process.env.TWITTER_CLIENT_ID,
-  //   client_secret: process.env.TWITTER_CLIENT_SECRET,
-  //   callback: 'http://127.0.0.1:3000/callback',
-  //   scopes: ['tweet.read', 'users.read', 'offline.access', 'tweet.write'],
-  //   token: authToken
-  // })
-
-  // async function refreshTwitterAuthToken() {
-  //   // if (debugTweet) {
-  //   //   console.log('skipping refresh of twitter access token due to DEBUG_TWEET')
-  //   //   return
-  //   // }
-
-  //   console.log('refreshing twitter access token')
-  //   try {
-  //     const { token } = await authClient.refreshAccessToken()
-  //     config.set('refreshToken', token.refresh_token)
-  //     // config.set('accessToken', token.access_token)
-  //     return token
-  //   } catch (err) {
-  //     console.error('unexpected error refreshing twitter access token', err)
-  //     return null
-  //   }
-  // }
-
-  // await refreshTwitterAuthToken()
-
-  // // Twitter API v2 using OAuth 2.0
-  // const twitter = new TwitterClient(authClient)
-
-  // Twitter API v1 using OAuth 1.1a?
-  // NOTE: this is required only to upload media since that doesn't seeem to be
-  // supported with the Twitter API v2
   const twitterApi = new TwitterApi({
     appKey: process.env.TWITTER_API_KEY,
     appSecret: process.env.TWITTER_API_SECRET_KEY,
@@ -59,8 +25,6 @@ async function main() {
     accessSecret: process.env.TWITTER_API_ACCESS_SECRET
   })
   const { v1: twitterV1 } = twitterApi
-
-  const hf = new HuggingFace(process.env.HUGGING_FACE_API_KEY)
 
   console.log('fetching redis interactions')
   const keys = await redis.keys(`${redisNamespace}:*`)
@@ -74,8 +38,130 @@ async function main() {
     )
   // console.log(interactions)
 
-  // interactions.sort((a, b) => (b.numFollowers || 0) - (a.numFollowers || 0))
-  // console.log(JSON.stringify(interactions.slice(0, 1000), null, 2))
+  if (analyze) {
+    console.log('analyzing interactions...')
+    const languageCounts = aggregateLanguagesForInteractions(interactions)
+    await saveJsonFile(
+      path.join(cacheDir, 'top-prompt-languages.json'),
+      languageCounts
+    )
+
+    const germanInteractions = interactions.filter(
+      (interaction) => interaction.promptLanguage === 'de'
+    )
+    const englishInteractions = interactions.filter(
+      (interaction) => interaction.promptLanguage === 'en'
+    )
+    const chineseInteractions = interactions.filter(
+      (interaction) => interaction.promptLanguage === 'zh'
+    )
+    const otherInteractions = interactions.filter(
+      (interaction) =>
+        interaction.promptLanguage &&
+        interaction.promptLanguage !== 'en' &&
+        interaction.promptLanguage !== 'de'
+    )
+
+    const interactionCategories = [
+      {
+        interactions,
+        label: 'all'
+      },
+      {
+        interactions: germanInteractions,
+        label: 'de'
+      },
+      {
+        interactions: englishInteractions,
+        label: 'en'
+      },
+      {
+        interactions: chineseInteractions,
+        label: 'zh'
+      },
+      {
+        interactions: otherInteractions,
+        label: 'other'
+      }
+    ]
+
+    for (const interactionCategory of interactionCategories) {
+      const { interactions, label } = interactionCategory
+
+      interactions.sort((a, b) => (b.promptLikes || 0) - (a.promptLikes || 0))
+      // if (label === 'all') {
+      //   const c = aggregateLanguagesForInteractions(interactions.slice(0, 100))
+      //   console.log('top prompt likes', c)
+      // }
+      await saveJsonFile(
+        path.join(cacheDir, `${label}-top-prompt-likes.json`),
+        interactions.slice(0, 100)
+      )
+
+      interactions.sort(
+        (a, b) => (b.promptRetweets || 0) - (a.promptRetweets || 0)
+      )
+      await saveJsonFile(
+        path.join(cacheDir, `${label}-top-prompt-retweets.json`),
+        interactions.slice(0, 100)
+      )
+
+      interactions.sort(
+        (a, b) => (b.responseLikes || 0) - (a.responseLikes || 0)
+      )
+      // if (label === 'all') {
+      //   const c = aggregateLanguagesForInteractions(interactions.slice(0, 100))
+      //   console.log('top response likes', c)
+      // }
+      await saveJsonFile(
+        path.join(cacheDir, `${label}-top-response-likes.json`),
+        interactions.slice(0, 100)
+      )
+
+      interactions.sort(
+        (a, b) => (b.responseRetweets || 0) - (a.responseRetweets || 0)
+      )
+      await saveJsonFile(
+        path.join(cacheDir, `${label}-top-response-retweets.json`),
+        interactions.slice(0, 100)
+      )
+
+      interactions.sort((a, b) => (b.numFollowers || 0) - (a.numFollowers || 0))
+      await saveJsonFile(
+        path.join(cacheDir, `${label}-top-followers.json`),
+        interactions.slice(0, 1000)
+      )
+
+      const dateInteractions = interactions.filter(
+        (interaction) => interaction.promptDate
+      )
+      dateInteractions.sort(
+        (a, b) =>
+          new Date(b.promptDate).getTime() - new Date(a.promptDate).getTime()
+      )
+      const dateMap = {}
+      for (const i of dateInteractions) {
+        const date = i.promptDate.split('T')[0]
+        dateMap[date] = (dateMap[date] || 0) + 1
+      }
+      const r = Object.entries(dateMap).map(([date, count]) => ({
+        date,
+        count
+      }))
+      await saveJsonFile(
+        path.join(cacheDir, `${label}-all-tweets.json`),
+        r
+        // dateInteractions.map((interaction) => ({
+        //   date: interaction.promptDate.split('T')[0],
+        //   promptLikes: interaction.promptLikes,
+        //   responseLikes: interaction.responseLikes,
+        //   numFollowers: interaction.numFollowers
+        // }))
+      )
+    }
+
+    return
+  }
 
   // update tweet stats in batches
   const batches: types.ChatGPTInteraction[][] = []
@@ -126,11 +212,9 @@ async function main() {
 
               if (interaction.role === 'assistant' && !interaction.error) {
                 try {
-                  const model = 'papluca/xlm-roberta-base-language-detection'
-                  const languageScores = await hf.textClassification({
-                    model,
-                    inputs: interaction.prompt
-                  })
+                  const languageScores = await detectLanguage(
+                    interaction.prompt
+                  )
 
                   console.log(
                     'lang',
@@ -213,6 +297,20 @@ async function main() {
       concurrency: 2
     }
   )
+}
+
+function aggregateLanguagesForInteractions(
+  interactions: types.ChatGPTInteraction[]
+) {
+  const languageCounts: Record<string, number> = {}
+  for (const interaction of interactions) {
+    if (interaction.promptLanguage) {
+      languageCounts[interaction.promptLanguage] =
+        (languageCounts[interaction.promptLanguage] ?? 0) + 1
+    }
+  }
+
+  return languageCounts
 }
 
 main()
