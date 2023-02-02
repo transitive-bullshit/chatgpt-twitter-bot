@@ -221,13 +221,13 @@ async function main() {
       // )
 
       if (!session.interactions?.length) {
-        console.log('sleeping for 5s...')
         // sleep if there were no mentions to process
-        await delay(5000) // 5s
+        console.log('sleeping for 15s...')
+        await delay(15000)
       } else {
-        console.log('sleeping for 1s...')
         // still sleep if there are active mentions because of rate limits...
-        await delay(1000)
+        console.log('sleeping for 5s...')
+        await delay(5000)
       }
 
       ++loopNum

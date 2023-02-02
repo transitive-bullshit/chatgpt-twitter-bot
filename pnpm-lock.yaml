@@ -6,7 +6,7 @@ specifiers:
   '@types/node': ^18.11.17
   '@types/rmfr': ^2.0.1
   ava: ^5.1.0
-  chatgpt: ^4.0.4
+  chatgpt: ^4.1.0
   conf: ^10.2.0
   del-cli: ^5.0.0
   delay: ^5.0.0
@@ -49,7 +49,7 @@ specifiers:
 
 dependencies:
   '@keyv/redis': 2.5.4
-  chatgpt: 4.0.4
+  chatgpt: 4.1.0
   conf: 10.2.0
   dotenv-safe: 8.2.0
   execa: 6.1.0
@@ -923,8 +923,8 @@ packages:
     resolution: {integrity: sha512-shx7oQ0Awen/BRIdkjkvz54PnEEI/EjwXDSIZp86/KKdbafHh1Df/RYGBhn4hbe2+uKC9FnT5UCEdyPz3ai9hQ==}
     dev: false
 
-  /chatgpt/4.0.4:
-    resolution: {integrity: sha512-3Z9NOAfBvz61HTNDl3ghp52PQERwOjjlnUfcdIBBNMEsGPBjeHRzZVs87Yz+3JaysGcHFU7WpT3KrM4gSBJcww==}
+  /chatgpt/4.1.0:
+    resolution: {integrity: sha512-nsgBmo3iengL+jpqNRewM2ktEkVZkY0Y/fYyg+hwVNpmpWthZjc8qHq7xG0kqc45P0Zufel69alO+E4jBh8itg==}
     engines: {node: '>=18'}
     dependencies:
       eventsource-parser: 0.0.5
