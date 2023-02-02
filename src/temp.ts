@@ -11,12 +11,13 @@ import * as types from './types'
 import config, { cacheDir, redisNamespace, twitterBotUserId } from './config'
 import { detectLanguage } from './huggingface'
 import { keyv, redis } from './keyv'
-import { getTweetsByIds } from './twitter'
+import { getTweetsByIds, tweetIdComparator } from './twitter'
 import { loadUserMentionCacheFromDiskByUserId } from './twitter-mentions'
 import { saveJsonFile } from './utils'
 
 async function main() {
   const analyze = !!process.env.ANALYZE
+  const minTweetId = process.env.MIN_TWEET_ID || '0'
 
   const twitterApi = new TwitterApi({
     appKey: process.env.TWITTER_API_KEY,
@@ -34,7 +35,9 @@ async function main() {
     .filter(Boolean)
     .filter(
       (interaction: types.ChatGPTInteraction) =>
-        interaction.role === 'assistant' && !interaction.error
+        interaction.role === 'assistant' &&
+        !interaction.error &&
+        tweetIdComparator(interaction.promptTweetId, minTweetId) === 1
     )
   // console.log(interactions)
 
@@ -173,7 +176,12 @@ async function main() {
   }
 
   console.log()
-  console.log('processing', numBatches, 'batches')
+  console.log(
+    'processing',
+    numBatches,
+    'batches',
+    `(${interactions.length} total interactions`
+  )
   console.log()
 
   await pMap(

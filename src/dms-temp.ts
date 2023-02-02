@@ -1,4 +1,10 @@
-import { TwitterApi } from 'twitter-api-v2'
+import delay from 'delay'
+import {
+  ReceivedDMAppListV1,
+  ReceivedDMEventV1,
+  ReceivedDMEventsV1,
+  TwitterApi
+} from 'twitter-api-v2'
 
 import './config'
 import { respondToDM } from './dms'
@@ -17,25 +23,40 @@ async function main() {
   })
   const { v1: twitterV1 } = twitterApi
 
-  const dms = await twitterV1.listDmEvents({
+  let dms: any[] = []
+  let paginator = await twitterV1.listDmEvents({
     count: 50
   })
-  const page = dms.data
 
-  for (const event of page.events) {
-    const authorId = event.message_create?.sender_id
+  do {
+    dms = dms.concat(paginator.events)
 
-    if (authorId === '327034465') {
-      console.log(event)
+    paginator = await paginator.next()
 
-      await respondToDM(event, {
-        twitterV1,
-        dryRun: false
-      })
+    // for (const event of page.events) {
+    //   const authorId = event.message_create?.sender_id
+
+    //   // if (authorId === '327034465') {
+    //   //   console.log(event)
+
+    //   //   await respondToDM(event, {
+    //   //     twitterV1,
+    //   //     dryRun: false
+    //   //   })
+    //   // }
+    // }
+
+    // console.log(JSON.stringify(dms, null, 2))
+    console.log(dms.length, paginator.done, paginator.events.length)
+    if (paginator.done) {
+      break
     }
-  }
 
-  // console.log(JSON.stringify(dms, null, 2))
+    await delay(61000)
+  } while (true)
+
+  console.log(JSON.stringify(dms, null, 2))
+  console.log(dms.length)
 }
 
 main()
@@ -43,6 +64,6 @@ main()
     process.exit(0)
   })
   .catch((err) => {
-    console.error('error', JSON.stringify(err, null, 2))
+    console.error('error', err)
     process.exit(1)
   })
