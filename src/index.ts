@@ -85,7 +85,7 @@ async function main() {
   // intialize chatgpt
   const chatgpt = new ChatGPTAPI({
     apiKey: process.env.OPENAI_API_KEY,
-    debug: true,
+    debug: false,
     getMessageById: async (id) => {
       return messageStore.get(id)
     },

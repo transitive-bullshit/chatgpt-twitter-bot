@@ -11,7 +11,7 @@ const throttle1 = pThrottle({
 
 const throttle2 = pThrottle({
   limit: 1,
-  interval: 1000,
+  interval: 5000,
   strict: true
 })
 

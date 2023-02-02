@@ -150,25 +150,25 @@ export async function respondToNewMentions({
         try {
           // Double-check that the tweet still exists before asking ChatGPT to
           // resolve it's response
-          try {
-            const promptTweet = await twitter.tweets.findTweetById(
-              promptTweetId
-            )
+          // try {
+          //   const promptTweet = await twitter.tweets.findTweetById(
+          //     promptTweetId
+          //   )
 
-            if (!promptTweet?.data) {
-              const error = new types.ChatError(
-                `Tweet not found (possibly deleted): ${promptTweetId}`
-              )
-              error.type = 'twitter:forbidden'
-              error.isFinal = true
-              throw error
-            }
-          } catch (err) {
-            const error = new types.ChatError(err.toString())
-            error.type = 'twitter:forbidden'
-            error.isFinal = true
-            throw error
-          }
+          //   if (!promptTweet?.data) {
+          //     const error = new types.ChatError(
+          //       `Tweet not found (possibly deleted): ${promptTweetId}`
+          //     )
+          //     error.type = 'twitter:forbidden'
+          //     error.isFinal = true
+          //     throw error
+          //   }
+          // } catch (err) {
+          //   const error = new types.ChatError(err.toString())
+          //   error.type = 'twitter:forbidden'
+          //   error.isFinal = true
+          //   throw error
+          // }
 
           console.log(
             'processing',
