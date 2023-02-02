@@ -1,15 +1,14 @@
-import { ChatGPTAPIBrowser } from 'chatgpt'
+import { ChatGPTAPI } from 'chatgpt'
 import delay from 'delay'
-import random from 'random'
 import { Client as TwitterClient, auth } from 'twitter-api-sdk'
 import { TwitterApi } from 'twitter-api-v2'
 
 import * as types from './types'
-import { ChatGPTAPIAccountInit, ChatGPTAPIPool } from './chatgpt-api-pool'
 import config, {
   defaultMaxNumMentionsToProcessPerBatch,
   twitterBotUserId
 } from './config'
+import { messageStore } from './keyv'
 import { respondToNewMentions } from './respond-to-new-mentions'
 import { maxTwitterId } from './twitter'
 import {
@@ -24,15 +23,12 @@ async function main() {
   const debugTweet = process.env.DEBUG_TWEET
   const defaultSinceMentionId = process.env.SINCE_ID
   const defaultRefreshToken = process.env.TWITTER_TOKEN
-  const tweetMode: types.TweetMode =
-    (process.env.TWEET_MODE as types.TweetMode) || 'image'
   const forceReply = !!process.env.FORCE_REPLY
   const resolveAllMentions = !!process.env.RESOLVE_ALL_MENTIONS
   const overrideMaxNumMentionsToProcess = parseInt(
     process.env.MAX_NUM_MENTIONS_TO_PROCESS,
     10
   )
-  const proxies = (process.env.PROXIES || '').split(',')
 
   const refreshToken = defaultRefreshToken || config.get('refreshToken')
   // const accessToken = undefined // config.get('accessToken')
@@ -86,51 +82,17 @@ async function main() {
     throw new Error('twitter error unable to fetch current user')
   }
 
-  const markdown = tweetMode === 'image' ? true : false
-  const chatgptAccountsRaw = process.env.CHATGPT_ACCOUNTS
-  const chatgptAccounts: ChatGPTAPIAccountInit[] = chatgptAccountsRaw
-    ? JSON.parse(chatgptAccountsRaw)
-    : null
-
-  let chatgpt: ChatGPTAPIBrowser
-
-  if (chatgptAccounts?.length) {
-    if (proxies?.length) {
-      const offset = random.int(0, proxies.length - 1)
-
-      for (let i = 0; i < chatgptAccounts.length; ++i) {
-        const account = chatgptAccounts[i]
-        const proxy = proxies[(offset + i) % proxies.length]
-
-        if (proxy && !account.proxyServer) {
-          account.proxyServer = proxy
-        }
-      }
+  // intialize chatgpt
+  const chatgpt = new ChatGPTAPI({
+    apiKey: process.env.OPENAI_API_KEY,
+    debug: true,
+    getMessageById: async (id) => {
+      return messageStore.get(id)
+    },
+    upsertMessage: async (message) => {
+      await messageStore.set(message.id, message)
     }
-    const accounts = debugTweet ? chatgptAccounts.slice(0, 1) : chatgptAccounts
-    console.log(`Initializing ChatGPTAPIPool with ${accounts.length} accounts`)
-
-    const chatgptApiPool = new ChatGPTAPIPool(accounts, {
-      markdown
-    })
-
-    await chatgptApiPool.initSession()
-
-    chatgpt = chatgptApiPool
-  } else {
-    console.log(`Initializing a single instance of ChatGPTAPI`)
-
-    const proxyServer = random.choice(proxies)
-
-    chatgpt = new ChatGPTAPIBrowser({
-      email: process.env.OPENAI_EMAIL,
-      password: process.env.OPENAI_PASSWORD,
-      markdown,
-      proxyServer
-    })
-
-    await chatgpt.initSession()
-  }
+  })
 
   console.log()
   await loadUserMentionCacheFromDiskByUserId({ userId: twitterBotUserId })
@@ -179,8 +141,7 @@ async function main() {
         twitter,
         twitterV1,
         sinceMentionId,
-        maxNumMentionsToProcess,
-        tweetMode
+        maxNumMentionsToProcess
       })
 
       if (session.sinceMentionId) {
@@ -226,14 +187,14 @@ async function main() {
       if (session.isExpiredAuth) {
         if (++numErrors > 50) {
           throw new Error(
-            'ChatGPT auth expired error; unrecoverable. Please update SESSION_TOKEN'
+            'ChatGPT auth expired error; unrecoverable. Please update chatgpt'
           )
         } else {
           console.log(
-            '\n\nChatGPT auth expired error; possibly unrecoverable. Please update SESSION_TOKEN\n\n'
+            '\n\nChatGPT auth expired error; possibly unrecoverable. Please update chatgpt\n\n'
           )
           console.error(
-            '\n\nChatGPT auth expired error; possibly unrecoverable. Please update SESSION_TOKEN\n\n'
+            '\n\nChatGPT auth expired error; possibly unrecoverable. Please update chatgpt\n\n'
           )
 
           await delay(10000) // 10s
@@ -280,7 +241,7 @@ async function main() {
         err,
         err.error?.errors ? JSON.stringify(err.error.errors, null, 2) : ''
       )
-      await delay(30000)
+      await delay(5000)
       await refreshTwitterAuthToken()
     }
   } while (true)

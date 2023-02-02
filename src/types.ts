@@ -67,6 +67,7 @@ export interface ChatGPTResponse {
   response: string
   conversationId?: string
   messageId?: string
+  parentMessageId?: string
   accountId?: string
 }
 
@@ -134,5 +135,3 @@ export class ChatError extends Error {
   type?: ChatErrorType = 'unknown'
   accountId?: string
 }
-
-export type TweetMode = 'image' | 'thread'
