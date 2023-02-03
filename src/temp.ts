@@ -180,7 +180,7 @@ async function main() {
     'processing',
     numBatches,
     'batches',
-    `(${interactions.length} total interactions`
+    `(${interactions.length} total interactions)`
   )
   console.log()
 

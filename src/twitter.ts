@@ -6,7 +6,8 @@ import * as types from './types'
 // enforce twitter rate limit of 200 tweets per 15 minutes
 const throttle1 = pThrottle({
   limit: 200,
-  interval: 15 * 60 * 1000
+  // interval: 15 * 60 * 1000
+  interval: 30 * 60 * 1000
 })
 
 const throttle2 = pThrottle({
