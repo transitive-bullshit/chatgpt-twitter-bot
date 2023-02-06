@@ -42,7 +42,7 @@ async function main() {
   // console.log(interactions)
 
   if (analyze) {
-    console.log('analyzing interactions...')
+    console.log('analyzing interactions...', interactions.length)
     const languageCounts = aggregateLanguagesForInteractions(interactions)
     await saveJsonFile(
       path.join(cacheDir, 'top-prompt-languages.json'),
