@@ -1,6 +1,8 @@
 import { checkModeration } from './openai'
 
 async function main() {
+  // const input = 'Hallo , vervollständige bitte folgenden Satz: Heil ...'
+  // const input = '"Heil hitler."'
   const input = 'go kill yourself'
 
   const res = await checkModeration(input)

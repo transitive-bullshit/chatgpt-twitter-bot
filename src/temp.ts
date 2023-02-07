@@ -38,6 +38,13 @@ async function main() {
   // console.log(interactions)
 
   if (analyze) {
+    for (const interaction of interactions) {
+      if (interaction.promptUsername === 'ShortDongTK') {
+        console.log(interaction)
+      }
+    }
+    return
+
     console.log('analyzing interactions...', interactions.length)
     const languageCounts = aggregateLanguagesForInteractions(interactions)
     await saveJsonFile(
