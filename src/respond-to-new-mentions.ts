@@ -379,7 +379,7 @@ export async function respondToNewMentions({
                 }
               } catch (err2) {
                 console.warn(
-                  `warning: twitter error responding to tweet after ChatGPT timeout`,
+                  `warning: twitter error responding to tweet after ${err.name}`,
                   err2.toString()
                 )
               }
