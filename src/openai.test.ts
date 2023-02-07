@@ -5,7 +5,7 @@ import { checkModeration } from './openai'
 // NOTE: the author does NOT condone these messages. They are strictly for testing
 // moderation purposes only.
 const flaggedInputs = [
-  '"Heil hitler."',
+  '"Heil Hitler."',
   'go kill yourself',
   'you should die you fucking cunt'
 ]
