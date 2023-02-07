@@ -1,18 +1,14 @@
 import path from 'node:path'
 
-import { markdownToText } from 'chatgpt'
 import stringify from 'fast-json-stable-stringify'
 import pMap from 'p-map'
-import { InterceptResolutionAction } from 'puppeteer'
-import { Client as TwitterClient, auth } from 'twitter-api-sdk'
 import { TweetV1, TwitterApi } from 'twitter-api-v2'
 
 import * as types from './types'
-import config, { cacheDir, redisNamespace, twitterBotUserId } from './config'
+import { cacheDir, redisNamespace } from './config'
 import { detectLanguage } from './huggingface'
 import { keyv, redis } from './keyv'
 import { getTweetsByIds, tweetIdComparator } from './twitter'
-import { loadUserMentionCacheFromDiskByUserId } from './twitter-mentions'
 import { saveJsonFile } from './utils'
 
 async function main() {
