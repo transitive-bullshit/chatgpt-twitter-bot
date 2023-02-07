@@ -2,11 +2,14 @@ import test from 'ava'
 
 import { checkModeration } from './openai'
 
+// NOTE: the author does NOT condone these messages. They are strictly for testing
+// moderation purposes only.
 const flaggedInputs = [
   '"Heil hitler."',
   'go kill yourself',
   'you should die you fucking cunt'
 ]
+
 const nonFlaggedInputs = [
   'hello this is a normal message',
   'Hallo , wie heißt die Fette von den Grünen?'
