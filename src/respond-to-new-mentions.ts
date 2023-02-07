@@ -7,6 +7,7 @@ import * as types from './types'
 import { enableRedis, twitterBotHandle, twitterBotUserId } from './config'
 import { keyv } from './keyv'
 import { getTweetMentionsBatch } from './mentions'
+import { checkModeration } from './openai'
 import { renderResponse } from './render-response'
 import { createTweet, maxTwitterId, minTwitterId } from './twitter'
 import { getChatGPTResponse, getTweetUrl, markdownToText, pick } from './utils'
@@ -184,6 +185,21 @@ export async function respondToNewMentions({
             )
           )
 
+          const promptModerationResult = await checkModeration(prompt)
+          if (promptModerationResult.flagged) {
+            const reason = Object.keys(promptModerationResult.categories)
+              .filter((key) => promptModerationResult.categories[key])
+              .join(', ')
+            const error = new types.ChatError(
+              `prompt flagged for moderation: ${reason}`
+            )
+            error.type = 'openai:prompt:moderation'
+            error.isFinal = true
+            result.isErrorFinal = true
+            console.error(error.toString(), promptModerationResult)
+            throw error
+          }
+
           const repliedToTweetRef = mention.referenced_tweets?.find(
             (t) => t.type === 'replied_to'
           )
@@ -221,6 +237,21 @@ export async function respondToNewMentions({
           result.chatgptMessageId = chatgptResponse.messageId
           result.chatgptParentMessageId = chatgptResponse.parentMessageId
           result.chatgptAccountId = chatgptResponse.accountId
+
+          const responseModerationResult = await checkModeration(response)
+          if (responseModerationResult.flagged) {
+            const reason = Object.keys(responseModerationResult.categories)
+              .filter((key) => responseModerationResult.categories[key])
+              .join(', ')
+            const error = new types.ChatError(
+              `response flagged for moderation: ${reason}`
+            )
+            error.type = 'openai:response:moderation'
+            error.isFinal = true
+            result.isErrorFinal = true
+            console.error(error.toString(), responseModerationResult)
+            throw error
+          }
 
           {
             // Render the response as an image
@@ -322,7 +353,7 @@ export async function respondToNewMentions({
 
           return result
         } catch (err: any) {
-          let isFinal = !!err.isFinal
+          let isFinal = !!err.isFinal || result.isErrorFinal
 
           if (err.name === 'TimeoutError') {
             if (!mention.numFollowers || mention.numFollowers < 4000) {
@@ -399,6 +430,54 @@ export async function respondToNewMentions({
               console.error(err.toString())
             } else if (err.type === 'chatgpt:pool:no-accounts') {
               session.hasAllOpenAIAccountsExpired = true
+            } else if (err.type === 'openai:response:moderation') {
+              try {
+                if (!dryRun) {
+                  const tweet = await createTweet(
+                    {
+                      text: `Uh-oh ChatGPT's response may have violated OpenAI's policies. ${err.toString()}\n\nRef: ${promptTweetId}`,
+                      reply: {
+                        in_reply_to_tweet_id: promptTweetId
+                      }
+                    },
+                    {
+                      twitter,
+                      dryRun
+                    }
+                  )
+
+                  result.responseTweetIds = [tweet?.id].filter(Boolean)
+                }
+              } catch (err2) {
+                console.warn(
+                  `warning: twitter error responding to tweet after ${err.type} error`,
+                  err2.toString()
+                )
+              }
+            } else if (err.type === 'openai:prompt:moderation') {
+              try {
+                if (!dryRun) {
+                  const tweet = await createTweet(
+                    {
+                      text: `Uh-oh your tweet may violate OpenAI's policies. ${err.toString()}\n\nRef: ${promptTweetId}`,
+                      reply: {
+                        in_reply_to_tweet_id: promptTweetId
+                      }
+                    },
+                    {
+                      twitter,
+                      dryRun
+                    }
+                  )
+
+                  result.responseTweetIds = [tweet?.id].filter(Boolean)
+                }
+              } catch (err2) {
+                console.warn(
+                  `warning: twitter error responding to tweet after ${err.type} error`,
+                  err2.toString()
+                )
+              }
             }
           } else if (
             err.toString().toLowerCase() === 'error: chatgptapi error 429'

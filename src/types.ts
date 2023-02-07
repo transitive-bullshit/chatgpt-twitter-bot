@@ -129,6 +129,8 @@ export type ChatErrorType =
   | 'chatgpt:pool:account-not-found'
   | 'chatgpt:pool:account-on-cooldown'
   | 'chatgpt:pool:no-accounts'
+  | 'openai:prompt:moderation'
+  | 'openai:response:moderation'
 
 export class ChatError extends Error {
   isFinal: boolean = false
