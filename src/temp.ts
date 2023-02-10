@@ -1,18 +1,14 @@
 import path from 'node:path'
 
-import { markdownToText } from 'chatgpt'
 import stringify from 'fast-json-stable-stringify'
 import pMap from 'p-map'
-import { InterceptResolutionAction } from 'puppeteer'
-import { Client as TwitterClient, auth } from 'twitter-api-sdk'
 import { TweetV1, TwitterApi } from 'twitter-api-v2'
 
 import * as types from './types'
-import config, { cacheDir, redisNamespace, twitterBotUserId } from './config'
+import { cacheDir, redisNamespace } from './config'
 import { detectLanguage } from './huggingface'
 import { keyv, redis } from './keyv'
 import { getTweetsByIds, tweetIdComparator } from './twitter'
-import { loadUserMentionCacheFromDiskByUserId } from './twitter-mentions'
 import { saveJsonFile } from './utils'
 
 async function main() {
@@ -42,7 +38,14 @@ async function main() {
   // console.log(interactions)
 
   if (analyze) {
-    console.log('analyzing interactions...')
+    // for (const interaction of interactions) {
+    //   if (interaction.promptUsername === 'pandaspende') {
+    //     console.log(interaction)
+    //   }
+    // }
+    // return
+
+    console.log('analyzing interactions...', interactions.length)
     const languageCounts = aggregateLanguagesForInteractions(interactions)
     await saveJsonFile(
       path.join(cacheDir, 'top-prompt-languages.json'),
@@ -180,7 +183,7 @@ async function main() {
     'processing',
     numBatches,
     'batches',
-    `(${interactions.length} total interactions`
+    `(${interactions.length} total interactions)`
   )
   console.log()
 

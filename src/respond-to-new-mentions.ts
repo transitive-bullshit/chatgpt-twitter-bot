@@ -1,27 +1,16 @@
-import { ChatGPTAPIBrowser, markdownToText } from 'chatgpt'
+import { ChatGPTAPI } from 'chatgpt'
 import delay from 'delay'
 import pMap from 'p-map'
 import rmfr from 'rmfr'
 
 import * as types from './types'
-import { ChatGPTAPIPool } from './chatgpt-api-pool'
 import { enableRedis, twitterBotHandle, twitterBotUserId } from './config'
-import { handlePromptLanguage } from './handle-language'
 import { keyv } from './keyv'
 import { getTweetMentionsBatch } from './mentions'
+import { checkModeration } from './openai'
 import { renderResponse } from './render-response'
-import {
-  createTweet,
-  createTwitterThreadForChatGPTResponse,
-  maxTwitterId,
-  minTwitterId
-} from './twitter'
-import {
-  getChatGPTResponse,
-  getTweetUrl,
-  getTweetsFromResponse,
-  pick
-} from './utils'
+import { createTweet, maxTwitterId, minTwitterId } from './twitter'
+import { getChatGPTResponse, getTweetUrl, markdownToText, pick } from './utils'
 
 /**
  * Fetches new unanswered mentions, resolves each of them via ChatGPT, and
@@ -38,8 +27,7 @@ export async function respondToNewMentions({
   chatgpt,
   twitter,
   twitterV1,
-  sinceMentionId,
-  tweetMode = 'image'
+  sinceMentionId
 }: {
   dryRun: boolean
   noCache: boolean
@@ -48,11 +36,10 @@ export async function respondToNewMentions({
   debugTweet?: string
   resolveAllMentions?: boolean
   maxNumMentionsToProcess?: number
-  chatgpt: ChatGPTAPIBrowser
+  chatgpt: ChatGPTAPI
   twitter: types.TwitterClient
   twitterV1: types.TwitterClientV1
   sinceMentionId?: string
-  tweetMode?: types.TweetMode
 }): Promise<types.ChatGPTSession> {
   console.log('respond to new mentions since', sinceMentionId || 'forever')
 
@@ -102,15 +89,10 @@ export async function respondToNewMentions({
     return session
   }
 
-  const isChatGPTPool = chatgpt instanceof ChatGPTAPIPool
-  const concurrency = isChatGPTPool
-    ? Math.min((chatgpt as ChatGPTAPIPool).accounts.length, 3)
-    : 1
-
   const results = (
     await pMap(
       batch.mentions,
-      async (mention, index): Promise<types.ChatGPTInteraction> => {
+      async (mention): Promise<types.ChatGPTInteraction> => {
         const { prompt, id: promptTweetId, author_id: promptUserId } = mention
         const promptUser = batch.users[mention.author_id]
         const promptUsername = promptUser?.username
@@ -167,38 +149,27 @@ export async function respondToNewMentions({
         // }
 
         try {
-          if (
-            !(await handlePromptLanguage({
-              result,
-              dryRun,
-              twitter,
-              tweetMode
-            }))
-          ) {
-            return result
-          }
-
           // Double-check that the tweet still exists before asking ChatGPT to
           // resolve it's response
-          try {
-            const promptTweet = await twitter.tweets.findTweetById(
-              promptTweetId
-            )
+          // try {
+          //   const promptTweet = await twitter.tweets.findTweetById(
+          //     promptTweetId
+          //   )
 
-            if (!promptTweet?.data) {
-              const error = new types.ChatError(
-                `Tweet not found (possibly deleted): ${promptTweetId}`
-              )
-              error.type = 'twitter:forbidden'
-              error.isFinal = true
-              throw error
-            }
-          } catch (err) {
-            const error = new types.ChatError(err.toString())
-            error.type = 'twitter:forbidden'
-            error.isFinal = true
-            throw error
-          }
+          //   if (!promptTweet?.data) {
+          //     const error = new types.ChatError(
+          //       `Tweet not found (possibly deleted): ${promptTweetId}`
+          //     )
+          //     error.type = 'twitter:forbidden'
+          //     error.isFinal = true
+          //     throw error
+          //   }
+          // } catch (err) {
+          //   const error = new types.ChatError(err.toString())
+          //   error.type = 'twitter:forbidden'
+          //   error.isFinal = true
+          //   throw error
+          // }
 
           console.log(
             'processing',
@@ -213,6 +184,21 @@ export async function respondToNewMentions({
               'priorityScore'
             )
           )
+
+          const promptModerationResult = await checkModeration(prompt)
+          if (promptModerationResult.flagged) {
+            const reason = Object.keys(promptModerationResult.categories)
+              .filter((key) => promptModerationResult.categories[key])
+              .join(', ')
+            const error = new types.ChatError(
+              `prompt flagged for moderation: ${reason}`
+            )
+            error.type = 'openai:prompt:moderation'
+            error.isFinal = true
+            result.isErrorFinal = true
+            console.error(error.toString(), promptModerationResult)
+            throw error
+          }
 
           const repliedToTweetRef = mention.referenced_tweets?.find(
             (t) => t.type === 'replied_to'
@@ -239,10 +225,9 @@ export async function respondToNewMentions({
 
           const chatgptResponse = await getChatGPTResponse(prompt, {
             chatgpt,
-            stripMentions: tweetMode === 'image' ? false : true,
+            stripMentions: false,
             conversationId: result.chatgptConversationId,
-            parentMessageId: result.chatgptParentMessageId,
-            chatgptAccountId: result.chatgptAccountId
+            parentMessageId: result.chatgptParentMessageId
           })
 
           // console.log('chatgptResponse', chatgptResponse)
@@ -250,45 +235,25 @@ export async function respondToNewMentions({
           result.response = response
           result.chatgptConversationId = chatgptResponse.conversationId
           result.chatgptMessageId = chatgptResponse.messageId
+          result.chatgptParentMessageId = chatgptResponse.parentMessageId
           result.chatgptAccountId = chatgptResponse.accountId
 
-          const responseL = response.toLowerCase()
-          if (
-            responseL.includes('too many requests, please slow down') ||
-            responseL.includes('too many requests in 1 hour. try again later')
-          ) {
-            session.isRateLimited = true
-            return null
+          const responseModerationResult = await checkModeration(response)
+          if (responseModerationResult.flagged) {
+            const reason = Object.keys(responseModerationResult.categories)
+              .filter((key) => responseModerationResult.categories[key])
+              .join(', ')
+            const error = new types.ChatError(
+              `response flagged for moderation: ${reason}`
+            )
+            error.type = 'openai:response:moderation'
+            error.isFinal = true
+            result.isErrorFinal = true
+            console.error(error.toString(), responseModerationResult)
+            throw error
           }
 
-          if (
-            responseL.includes('your authentication token has expired') ||
-            responseL.includes('please try signing in again')
-          ) {
-            session.isExpiredAuth = true
-            return null
-          }
-
-          if (tweetMode === 'thread') {
-            // Convert the response to tweet-sized chunks
-            const tweetTexts = getTweetsFromResponse(response)
-
-            console.log('prompt => thread', {
-              promptTweetId,
-              prompt,
-              response,
-              tweetTexts
-            })
-
-            const tweets = await createTwitterThreadForChatGPTResponse({
-              mention,
-              tweetTexts,
-              twitter,
-              dryRun
-            })
-
-            result.responseTweetIds = tweets.map((tweet) => tweet.id)
-          } else {
+          {
             // Render the response as an image
             const imageFilePath = await renderResponse({
               prompt,
@@ -316,6 +281,7 @@ export async function respondToNewMentions({
               console.log('twitter media', mediaId)
 
               try {
+                // TODO
                 const text = markdownToText(response)
                   ?.trim()
                   .slice(0, 1000)
@@ -387,7 +353,7 @@ export async function respondToNewMentions({
 
           return result
         } catch (err: any) {
-          let isFinal = !!err.isFinal
+          let isFinal = !!err.isFinal || result.isErrorFinal
 
           if (err.name === 'TimeoutError') {
             if (!mention.numFollowers || mention.numFollowers < 4000) {
@@ -413,14 +379,10 @@ export async function respondToNewMentions({
                 }
               } catch (err2) {
                 console.warn(
-                  `warning: twitter error responding to tweet after ChatGPT timeout`,
+                  `warning: twitter error responding to tweet after ${err.name}`,
                   err2.toString()
                 )
               }
-            }
-
-            if (!isChatGPTPool) {
-              await delay(10000)
             }
           } else if (err instanceof types.ChatError) {
             if (err.type === 'twitter:auth') {
@@ -468,6 +430,54 @@ export async function respondToNewMentions({
               console.error(err.toString())
             } else if (err.type === 'chatgpt:pool:no-accounts') {
               session.hasAllOpenAIAccountsExpired = true
+            } else if (err.type === 'openai:response:moderation') {
+              try {
+                if (!dryRun) {
+                  const tweet = await createTweet(
+                    {
+                      text: `Uh-oh ChatGPT's response may have violated OpenAI's policies. ${err.toString()}\n\nRef: ${promptTweetId}`,
+                      reply: {
+                        in_reply_to_tweet_id: promptTweetId
+                      }
+                    },
+                    {
+                      twitter,
+                      dryRun
+                    }
+                  )
+
+                  result.responseTweetIds = [tweet?.id].filter(Boolean)
+                }
+              } catch (err2) {
+                console.warn(
+                  `warning: twitter error responding to tweet after ${err.type} error`,
+                  err2.toString()
+                )
+              }
+            } else if (err.type === 'openai:prompt:moderation') {
+              try {
+                if (!dryRun) {
+                  const tweet = await createTweet(
+                    {
+                      text: `Uh-oh your tweet may violate OpenAI's policies. ${err.toString()}\n\nRef: ${promptTweetId}`,
+                      reply: {
+                        in_reply_to_tweet_id: promptTweetId
+                      }
+                    },
+                    {
+                      twitter,
+                      dryRun
+                    }
+                  )
+
+                  result.responseTweetIds = [tweet?.id].filter(Boolean)
+                }
+              } catch (err2) {
+                console.warn(
+                  `warning: twitter error responding to tweet after ${err.type} error`,
+                  err2.toString()
+                )
+              }
             }
           } else if (
             err.toString().toLowerCase() === 'error: chatgptapi error 429'
@@ -531,7 +541,7 @@ export async function respondToNewMentions({
         }
       },
       {
-        concurrency
+        concurrency: 3
       }
     )
   ).filter(Boolean)

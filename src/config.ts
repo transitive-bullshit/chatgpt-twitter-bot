@@ -33,63 +33,6 @@ export const priorityUsersList = new Set([
   '1598922281434103808' // ChatGPTBot
 ])
 
-export const languageAllowList = new Set([
-  'eng',
-  'sco',
-  'spa',
-  'deu',
-  'nno',
-  'fra',
-  'nld',
-  'dan',
-  'lun',
-  'afr',
-  'arb',
-  'bcl',
-  'som',
-  'sot',
-  'prs',
-  'swe',
-  'ckb',
-  'nds',
-  'hat',
-  'sna',
-  'snk',
-  'pam',
-  'ita',
-  'nso',
-  'vec',
-  'bum',
-  'ron',
-  'lit',
-  'fuv',
-  'rmn',
-  'por',
-  'tzm',
-  'tat',
-  'bug',
-  'ces',
-  'bum',
-  'hms',
-  'cat',
-  'glg'
-])
-
-// These languages are only disallowed if tweetMode is `thread` since the current
-// logic to split responses up into tweets relies on Western sentence structure.
-export const languageDisallowList = new Set([
-  'jpn',
-  'cmn',
-  'zho',
-  'cth',
-  'yue',
-  'nan',
-  'nod',
-  'sou',
-  'tha',
-  'vie'
-])
-
 // Optional redis instance for persisting responses
 export const enableRedis = true
 export const redisHost = process.env.REDIS_HOST
@@ -98,6 +41,8 @@ export const redisUser = process.env.REDIS_USER || 'default'
 export const redisNamespace = process.env.REDIS_NAMESPACE || 'chatgpt'
 export const redisNamespaceDMs =
   process.env.REDIS_NAMESPACE_DMS || 'chatgpt-dms'
+export const redisNamespaceMessages =
+  process.env.REDIS_NAMESPACE_MESSAGES || 'chatgpt-messages'
 export const redisUrl =
   process.env.REDIS_URL || `redis://${redisUser}:${redisPassword}@${redisHost}`
 

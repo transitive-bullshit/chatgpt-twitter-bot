@@ -67,6 +67,7 @@ export interface ChatGPTResponse {
   response: string
   conversationId?: string
   messageId?: string
+  parentMessageId?: string
   accountId?: string
 }
 
@@ -128,11 +129,11 @@ export type ChatErrorType =
   | 'chatgpt:pool:account-not-found'
   | 'chatgpt:pool:account-on-cooldown'
   | 'chatgpt:pool:no-accounts'
+  | 'openai:prompt:moderation'
+  | 'openai:response:moderation'
 
 export class ChatError extends Error {
   isFinal: boolean = false
   type?: ChatErrorType = 'unknown'
   accountId?: string
 }
-
-export type TweetMode = 'image' | 'thread'

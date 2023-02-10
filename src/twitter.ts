@@ -1,4 +1,3 @@
-import pMap from 'p-map'
 import pMemoize from 'p-memoize'
 import pThrottle from 'p-throttle'
 
@@ -7,12 +6,13 @@ import * as types from './types'
 // enforce twitter rate limit of 200 tweets per 15 minutes
 const throttle1 = pThrottle({
   limit: 200,
-  interval: 15 * 60 * 1000
+  // interval: 15 * 60 * 1000
+  interval: 30 * 60 * 1000
 })
 
 const throttle2 = pThrottle({
   limit: 1,
-  interval: 1000,
+  interval: 5000,
   strict: true
 })
 
@@ -171,53 +171,6 @@ export function tweetComparator(
   const a = tweetA.id
   const b = tweetB.id
   return tweetIdComparator(a, b)
-}
-
-/**
- * Tweets each tweet in the response thread serially one after the other.
- */
-export async function createTwitterThreadForChatGPTResponse({
-  mention,
-  tweetTexts,
-  twitter,
-  dryRun
-}: {
-  mention?: any
-  tweetTexts: string[]
-  twitter?: types.TwitterClient
-  dryRun?: boolean
-}): Promise<types.CreatedTweet[]> {
-  let prevTweet = mention
-
-  const tweets = (
-    await pMap(
-      tweetTexts,
-      async (text): Promise<types.CreatedTweet> => {
-        const reply = prevTweet?.id
-          ? {
-              in_reply_to_tweet_id: prevTweet.id
-            }
-          : undefined
-
-        // Note: this call is rate-limited on our side
-        const tweet = await createTweet({ text, reply }, { twitter, dryRun })
-
-        if (tweet) {
-          prevTweet = tweet
-        }
-
-        console.log('tweet response', JSON.stringify(tweet, null, 2))
-        return tweet
-      },
-      {
-        // This has to be set to 1 because each tweet in the thread replies
-        // the to tweet before it
-        concurrency: 1
-      }
-    )
-  ).filter(Boolean)
-
-  return tweets
 }
 
 const getUserByIdThrottle = pThrottle({
