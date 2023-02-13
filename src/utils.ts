@@ -1,10 +1,50 @@
 import fs from 'node:fs/promises'
 
 import type { ChatGPTAPI, ChatMessage } from 'chatgpt'
+import fastJsonStableStringify from 'fast-json-stable-stringify'
+import pMemoize from 'p-memoize'
+import QuickLRU from 'quick-lru'
 import { remark } from 'remark'
 import stripMarkdown from 'strip-markdown'
 
 import * as types from './types'
+
+const chatgptMessageCache = new QuickLRU<string, ChatMessage>({
+  maxSize: 10000
+})
+
+const sendChatGPTMessage = pMemoize(sendChatGPTMessageImpl, {
+  cache: chatgptMessageCache,
+  cacheKey: (args) => fastJsonStableStringify(args[0])
+})
+
+async function sendChatGPTMessageImpl(
+  {
+    prompt,
+    timeoutMs,
+    conversationId,
+    parentMessageId,
+    promptPrefix
+  }: {
+    prompt: string
+    conversationId?: string
+    parentMessageId?: string
+    timeoutMs?: number
+    promptPrefix?: string
+  },
+  {
+    chatgpt
+  }: {
+    chatgpt: ChatGPTAPI
+  }
+) {
+  return chatgpt.sendMessage(prompt, {
+    timeoutMs,
+    conversationId,
+    parentMessageId,
+    promptPrefix
+  })
+}
 
 /**
  * Asks ChatGPT for a response to a prompt
@@ -34,11 +74,28 @@ export async function getChatGPTResponse(
       parentMessageId
     })
 
-    const res = await chatgpt.sendMessage(prompt, {
-      timeoutMs,
-      conversationId,
-      parentMessageId
-    })
+    // TODO: random personalities encoded as accountId...
+    const promptPrefix = `You are ChatGPT, a large language model trained by OpenAI. You answer concisely and creatively to tweets on twitter. You are eager to please, friendly, enthusiastic, and very passionate. You like to use emoji, but not for lists. If you are generating a list, do not have too many items. Keep the number of items short.`
+
+    const res = await sendChatGPTMessage(
+      {
+        prompt,
+        timeoutMs,
+        conversationId,
+        parentMessageId,
+        promptPrefix
+      },
+      {
+        chatgpt
+      }
+    )
+
+    // chatgpt.sendMessage(prompt, {
+    //   timeoutMs,
+    //   conversationId,
+    //   parentMessageId,
+    //   promptPrefix
+    // })
 
     response = res.text
     conversationId = res.conversationId
@@ -100,8 +157,16 @@ export function getTweetUrl({
   }
 }
 
-export async function saveJsonFile(filePath: string, json: any) {
-  return fs.writeFile(filePath, JSON.stringify(json, null, 2), 'utf-8')
+export async function saveJsonFile(
+  filePath: string,
+  json: any,
+  { pretty = true }: { pretty?: boolean } = {}
+) {
+  return fs.writeFile(
+    filePath,
+    pretty ? JSON.stringify(json, null, 2) : JSON.stringify(json),
+    'utf-8'
+  )
 }
 
 export function markdownToText(markdown?: string): string {

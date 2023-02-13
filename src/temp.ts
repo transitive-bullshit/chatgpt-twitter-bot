@@ -13,6 +13,7 @@ import { saveJsonFile } from './utils'
 
 async function main() {
   const analyze = !!process.env.ANALYZE
+  const exportData = !!process.env.EXPORT
   const minTweetId = process.env.MIN_TWEET_ID || '0'
 
   const twitterApi = new TwitterApi({
@@ -37,7 +38,17 @@ async function main() {
     )
   // console.log(interactions)
 
-  if (analyze) {
+  if (exportData) {
+    console.log('exporting interactions...', interactions.length)
+
+    await saveJsonFile(
+      path.join(cacheDir, 'chatgpt-twitter-bot-export.json'),
+      interactions
+      // { pretty: false }
+    )
+
+    return
+  } else if (analyze) {
     // for (const interaction of interactions) {
     //   if (interaction.promptUsername === 'pandaspende') {
     //     console.log(interaction)
