@@ -6,7 +6,7 @@ authors = ["Travis Fischer <travis@transitivebullsh.it>"]
 
 [tool.poetry.dependencies]
 python = "^3.8"
-revchatgpt = "^0.0.33.5"
+openaiauth = "^0.2.0"
 [tool.poetry.dev-dependencies]
 
 [build-system]

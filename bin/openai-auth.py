@@ -1,10 +1,13 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- coding: UTF-8 -*-
 
 import re
 import os
 import argparse
+from os import environ
+import OpenAIAuth
 
+from OpenAIAuth.OpenAIAuth import OpenAIAuth
 
 def email_type(value: str) -> str:
     """validator on email"""
@@ -16,19 +19,14 @@ def email_type(value: str) -> str:
 
 def login(email: str, password: str) -> str:
     """generate ChatGPT session_token by email and password"""
-    chatbot = Chatbot(
-        config={
-            "email": email,
-            "password": password,
-            "proxy": os.environ.get("http_proxy", None),
-        },
-        conversation_id=None,
-    )
-    chatbot.login(
-        email=email,
+    auth = OpenAIAuth(
+        email_address=email,
         password=password,
+        proxy=os.environ.get("http_proxy", None)
     )
-    return chatbot.config.get('session_token')
+    auth.begin()
+    access_token = auth.get_access_token()
+    return access_token
 
 
 def gen_argparser() -> argparse.Namespace:
@@ -41,9 +39,5 @@ def gen_argparser() -> argparse.Namespace:
 
 
 if __name__ == "__main__":
-    try:
-        from revChatGPT.revChatGPT import Chatbot
-    except:
-        raise RuntimeError("Could import revChatGPT. Please install it first. You can run `poetry install` to install it.")
     args = gen_argparser()
     print(login(args.email, args.password))
