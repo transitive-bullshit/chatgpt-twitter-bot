@@ -15,6 +15,8 @@ async function main() {
   })
 
   const chatgpt = new ChatGPTAPI({
+    // https://chatgpt.hato.ai/completions
+    // chatgpt.duti.tech
     apiReverseProxyUrl: 'https://chatgpt.pawan.krd/api/completions',
     apiKey: accessToken,
     completionParams: {
