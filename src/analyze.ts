@@ -24,6 +24,10 @@ async function main() {
   })
   const { v1: twitterV1 } = twitterApi
 
+  // const res = await twitterV1.users({ screen_name: 'ReplyGPT' })
+  // console.log(JSON.stringify(res, null, 2))
+  // return
+
   console.log('fetching redis interactions')
   const keys = await redis.keys(`${redisNamespace}:*`)
   const records = await redis.mget(keys)

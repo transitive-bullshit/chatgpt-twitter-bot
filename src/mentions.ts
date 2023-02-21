@@ -8,7 +8,8 @@ import {
   tweetIgnoreList,
   twitterBotHandle,
   twitterBotHandleL,
-  twitterBotUserId
+  twitterBotUserId,
+  twitterUsersIgnoreList
 } from './config'
 import { keyv } from './keyv'
 import { maxTwitterId, minTwitterId, tweetComparator } from './twitter'
@@ -330,6 +331,10 @@ export function isValidMention(
   }
 
   if (tweetIgnoreList.has(mention.id)) {
+    return false
+  }
+
+  if (twitterUsersIgnoreList.has(mention.author_id)) {
     return false
   }
 
