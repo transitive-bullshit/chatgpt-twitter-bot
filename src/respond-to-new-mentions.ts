@@ -1,9 +1,9 @@
-import { ChatGPTAPI } from 'chatgpt'
-import delay from 'delay'
+import { ChatGPTUnofficialProxyAPI } from 'chatgpt'
 import pMap from 'p-map'
 import rmfr from 'rmfr'
 
 import * as types from './types'
+// import { ChatGPTUnofficialProxyAPIPool } from './chatgpt-proxy-api-pool'
 import { enableRedis, twitterBotHandle, twitterBotUserId } from './config'
 import { keyv } from './keyv'
 import { getTweetMentionsBatch } from './mentions'
@@ -36,7 +36,7 @@ export async function respondToNewMentions({
   debugTweet?: string
   resolveAllMentions?: boolean
   maxNumMentionsToProcess?: number
-  chatgpt: ChatGPTAPI
+  chatgpt: ChatGPTUnofficialProxyAPI
   twitter: types.TwitterClient
   twitterV1: types.TwitterClientV1
   sinceMentionId?: string
@@ -88,6 +88,9 @@ export async function respondToNewMentions({
 
     return session
   }
+
+  // const isChatGPTAccountPool = chatgpt instanceof ChatGPTUnofficialProxyAPIPool
+  // const concurrency = isChatGPTAccountPool ? 4 : 1
 
   const results = (
     await pMap(
@@ -480,13 +483,13 @@ export async function respondToNewMentions({
               }
             }
           } else if (
-            err.toString().toLowerCase() === 'error: chatgptapi error 429'
+            err.toString().toLowerCase() === 'error: ChatGPT error 429'
           ) {
             console.log('\nchatgpt rate limit\n')
             session.isRateLimited = true
           } else if (
-            err.toString().toLowerCase() === 'error: chatgptapi error 503' ||
-            err.toString().toLowerCase() === 'error: chatgptapi error 502'
+            err.toString().toLowerCase() === 'error: ChatGPT error 503' ||
+            err.toString().toLowerCase() === 'error: ChatGPT error 502'
           ) {
             if (!mention.numFollowers || mention.numFollowers < 4000) {
               // TODO: for now, we won't worry about trying to deal with retrying these requests

@@ -1,4 +1,4 @@
-import { ChatGPTAPI } from 'chatgpt'
+import { ChatGPTUnofficialProxyAPI } from 'chatgpt'
 
 import './config'
 import { generateAccessTokenForOpenAIAccount } from './openai-auth'
@@ -14,10 +14,11 @@ async function main() {
     password
   })
 
-  const chatgpt = new ChatGPTAPI({
+  const chatgpt = new ChatGPTUnofficialProxyAPI({
     // https://chatgpt.hato.ai/completions
     // chatgpt.duti.tech
-    apiReverseProxyUrl: 'https://chatgpt.pawan.krd/api/completions',
+    // apiReverseProxyUrl: 'https://chatgpt.pawan.krd/api/completions',
+    apiReverseProxyUrl: 'https://gpt.pawan.krd/backend-api/conversation',
     apiKey: accessToken,
     completionParams: {
       model: 'text-davinci-002-render' // free, default model

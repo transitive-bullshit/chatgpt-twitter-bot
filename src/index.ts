@@ -1,14 +1,15 @@
-import { ChatGPTAPI } from 'chatgpt'
 import delay from 'delay'
 import { Client as TwitterClient, auth } from 'twitter-api-sdk'
 import { TwitterApi } from 'twitter-api-v2'
 
 import * as types from './types'
+import { ChatGPTUnofficialProxyAPIPool } from './chatgpt-proxy-api-pool'
 import config, {
   defaultMaxNumMentionsToProcessPerBatch,
   twitterBotUserId
 } from './config'
 import { messageStore } from './keyv'
+import { generateAccessTokenForOpenAIAccount } from './openai-auth'
 import { respondToNewMentions } from './respond-to-new-mentions'
 import { maxTwitterId } from './twitter'
 import {
@@ -29,6 +30,7 @@ async function main() {
     process.env.MAX_NUM_MENTIONS_TO_PROCESS,
     10
   )
+  const chatgptAccounts = process.env.CHATGPT_ACCOUNTS
 
   const refreshToken = defaultRefreshToken || config.get('refreshToken')
   // const accessToken = undefined // config.get('accessToken')
@@ -83,16 +85,28 @@ async function main() {
   }
 
   // intialize chatgpt
-  const chatgpt = new ChatGPTAPI({
-    apiKey: process.env.OPENAI_API_KEY,
-    debug: false,
-    getMessageById: async (id) => {
-      return messageStore.get(id)
-    },
-    upsertMessage: async (message) => {
-      await messageStore.set(message.id, message)
-    }
-  })
+  let chatgpt: ChatGPTUnofficialProxyAPIPool
+
+  if (chatgptAccounts) {
+    const accounts = JSON.parse(chatgptAccounts)
+    chatgpt = new ChatGPTUnofficialProxyAPIPool(accounts, {
+      debug: true,
+      getAccesstokenFn: generateAccessTokenForOpenAIAccount
+    })
+
+    await chatgpt.init()
+
+    // const chatgpt = new ChatGPTAPI({
+    //   apiKey: process.env.OPENAI_API_KEY,
+    //   debug: false,
+    //   getMessageById: async (id) => {
+    //     return messageStore.get(id)
+    //   },
+    //   upsertMessage: async (message) => {
+    //     await messageStore.set(message.id, message)
+    //   }
+    // })
+  }
 
   console.log()
   await loadUserMentionCacheFromDiskByUserId({ userId: twitterBotUserId })

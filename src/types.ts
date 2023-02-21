@@ -136,4 +136,16 @@ export class ChatError extends Error {
   isFinal: boolean = false
   type?: ChatErrorType = 'unknown'
   accountId?: string
+  statusCode?: number
+  statusText?: string
 }
+
+export type GetAccessTokenFn = ({
+  email,
+  password,
+  sessionToken
+}: {
+  email: string
+  password: string
+  sessionToken?: string
+}) => string | Promise<string>
