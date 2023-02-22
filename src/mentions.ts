@@ -84,8 +84,8 @@ export async function getTweetMentionsBatch({
       await pMap(
         batch.mentions,
         async (mention) => {
-          const res = await keyv.get(mention.id)
-          if (res) {
+          const res: types.ChatGPTInteraction = await keyv.get(mention.id)
+          if (res && (!res.error || res.isErrorFinal)) {
             updateSinceMentionId(mention.id)
             return null
           } else {
