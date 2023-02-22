@@ -1,4 +1,5 @@
 import { ChatGPTUnofficialProxyAPI } from 'chatgpt'
+import delay from 'delay'
 import pMap from 'p-map'
 import rmfr from 'rmfr'
 
@@ -95,7 +96,7 @@ export async function respondToNewMentions({
   const results = (
     await pMap(
       batch.mentions,
-      async (mention): Promise<types.ChatGPTInteraction> => {
+      async (mention, index): Promise<types.ChatGPTInteraction> => {
         const { prompt, id: promptTweetId, author_id: promptUserId } = mention
         const promptUser = batch.users[mention.author_id]
         const promptUsername = promptUser?.username
@@ -145,11 +146,11 @@ export async function respondToNewMentions({
           return result
         }
 
-        // if (index > 0) {
-        //   // slight slow down between ChatGPT requests
-        //   console.log('pausing for chatgpt...')
-        //   await delay(6000)
-        // }
+        if (index > 0) {
+          // slight slow down between ChatGPT requests
+          console.log('pausing for chatgpt...')
+          await delay(6000)
+        }
 
         try {
           // Double-check that the tweet still exists before asking ChatGPT to
@@ -544,7 +545,7 @@ export async function respondToNewMentions({
         }
       },
       {
-        concurrency: 3
+        concurrency: 2
       }
     )
   ).filter(Boolean)

@@ -1,3 +1,5 @@
+import * as https from 'node:https'
+
 import delay from 'delay'
 import { Client as TwitterClient, auth } from 'twitter-api-sdk'
 import { TwitterApi } from 'twitter-api-v2'
@@ -17,6 +19,10 @@ import {
   saveAllUserMentionCachesToDisk
 } from './twitter-mentions'
 
+const agent = new https.Agent({
+  keepAlive: true
+})
+
 async function main() {
   const debug = !!process.env.DEBUG
   const dryRun = !!process.env.DRY_RUN
@@ -32,6 +38,7 @@ async function main() {
     10
   )
   const chatgptAccounts = process.env.CHATGPT_ACCOUNTS
+  const openaiReverseProxy = process.env.OPENAI_REVERSE_PROXY
 
   const refreshToken = defaultRefreshToken || config.get('refreshToken')
   // const accessToken = undefined // config.get('accessToken')
@@ -91,9 +98,20 @@ async function main() {
   if (chatgptAccounts) {
     const accounts = JSON.parse(chatgptAccounts)
     chatgpt = new ChatGPTUnofficialProxyAPIPool(accounts, {
-      apiReverseProxyUrl: 'https://gpt.pawan.krd/backend-api/conversation',
+      apiReverseProxyUrl: openaiReverseProxy || undefined,
       debug: !!debug,
-      getAccesstokenFn: generateAccessTokenForOpenAIAccount
+      getAccesstokenFn: generateAccessTokenForOpenAIAccount,
+      fetch: async (url, options) => {
+        return fetch(url, {
+          ...options,
+          headers: {
+            ...options.headers,
+            // 'keep-alive': 'timeout=360',
+            accept: 'text/event-stream'
+          },
+          keepalive: true
+        })
+      }
     })
 
     await chatgpt.init()

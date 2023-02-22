@@ -81,6 +81,12 @@ export async function getChatGPTResponse(
     })
 
     if (isChatGPTAccountPool) {
+      if (parentMessageId?.startsWith('cmpl')) {
+        conversationId = undefined
+        parentMessageId = undefined
+        accountId = undefined
+      }
+
       const res = await chatgpt.sendMessageToAccount(prompt, {
         timeoutMs,
         conversationId,

@@ -86,6 +86,12 @@ export class ChatGPTUnofficialProxyAPIPool extends ChatGPTUnofficialProxyAPI {
    * each of them.
    */
   async init() {
+    console.log(
+      'initializing',
+      this._accountsInit.length,
+      'chatgpt accounts...'
+    )
+
     this._accounts = (
       await pMap(
         this._accountsInit,
@@ -130,11 +136,12 @@ export class ChatGPTUnofficialProxyAPIPool extends ChatGPTUnofficialProxyAPI {
               err.toString()
             )
 
+            await delay(5000)
             return null
           }
         },
         {
-          concurrency: 4
+          concurrency: 2
         }
       )
     ).filter(Boolean)
@@ -151,6 +158,14 @@ export class ChatGPTUnofficialProxyAPIPool extends ChatGPTUnofficialProxyAPI {
       const error = new Error('No ChatGPT accounts authenticated')
       throw error
     }
+
+    console.log(
+      '\n\ninitialized',
+      this._accounts.length,
+      'chatgpt accounts out of',
+      this._accountsInit.length,
+      'total\n'
+    )
   }
 
   get accounts(): ChatGPTAPIAccount[] {
@@ -205,18 +220,18 @@ export class ChatGPTUnofficialProxyAPIPool extends ChatGPTUnofficialProxyAPI {
       return null
     }
 
-    if (
-      !this._accountsOnCooldown.has(account.id) &&
-      !this._accountsInUse.has(account.id)
-    ) {
+    const isInUse = this._accountsInUse.has(account.id)
+    if (!this._accountsOnCooldown.has(account.id) && !isInUse) {
       return account
     }
 
     console.log(
       `ChatGPT account ${account.id} ${
-        this._accountsInUse.has(account.id) ? 'is in use' : 'is on cooldown'
+        isInUse ? 'is in use' : 'is on cooldown'
       }; sleeping...`
     )
+
+    const maxNumTries = isInUse ? 200 : 5
     let numTries = 0
 
     do {
@@ -229,7 +244,7 @@ export class ChatGPTUnofficialProxyAPIPool extends ChatGPTUnofficialProxyAPI {
       ) {
         return account
       }
-    } while (numTries < 300)
+    } while (numTries < maxNumTries)
 
     const error = new types.ChatError(
       `ChatGPTUnofficialProxyAPIPool account on cooldown "${accountId}"`
@@ -291,10 +306,9 @@ export class ChatGPTUnofficialProxyAPIPool extends ChatGPTUnofficialProxyAPI {
       try {
         if (numRetries <= 0) {
           if (!accountId && opts.conversationId) {
-            // If there is no account specified, but the request is part of an existing
-            // conversation, then use the default account which handled all conversations
-            // before we added support for multiple accounts.
-            accountId = this.accounts[0].id
+            // accountId = this.accounts[0].id
+            rest.conversationId = undefined
+            rest.parentMessageId = undefined
           }
 
           if (accountId) {
@@ -337,10 +351,18 @@ export class ChatGPTUnofficialProxyAPIPool extends ChatGPTUnofficialProxyAPI {
         // await account.api.resetThread()
         const res = await account.api.sendMessage(prompt, rest)
 
+        this._accountsInUse.delete(account.id)
+
         return { ...res, accountId: account.id }
       } catch (err) {
-        if (err.name === 'TimeoutError') {
+        if (err.name === 'TimeoutError' || err.statusCode === 504) {
           if (++numRetries <= 1) {
+            console.log(
+              `chatgpt account ${account?.id} timeout; pausing for 15s...`
+            )
+            await delay(15 * 1000)
+            continue
+          } else if (numRetries <= 2) {
             console.log(
               `chatgpt account ${account?.id} timeout; refreshing session`
             )
@@ -359,102 +381,89 @@ export class ChatGPTUnofficialProxyAPIPool extends ChatGPTUnofficialProxyAPI {
           error.isFinal = false
           error.accountId = account?.id
           throw error
-        } else if (err instanceof types.ChatError) {
-          if (err.statusCode === 429) {
-            console.log('\nchatgpt 429', account?.id, '\n')
+        } else if (err.statusCode === 429) {
+          console.log(
+            '\nchatgpt 429',
+            account?.id,
+            err.statusText,
+            err.toString(),
+            '\n'
+          )
 
-            this._accountsOnCooldown.set(account?.id, true, {
-              maxAge: this._accountCooldownMs * 3
-            })
+          this._accountsOnCooldown.set(account?.id, true, {
+            maxAge: this._accountCooldownMs * 3
+          })
 
-            const error = new types.ChatError(err.toString())
-            error.type = 'chatgpt:pool:rate-limit'
-            error.isFinal = false
-            error.accountId = account?.id
-            throw error
-          } else if (err.statusCode === 403) {
-            if (++numRetries <= 1) {
-              console.log(
-                `chatgpt account ${
-                  account?.id
-                } ${err.toString()}; refreshing session`
-              )
-
-              if (await this.tryRefreshSessionForAccount(account?.id)) {
-                continue
-              }
-            }
-
-            console.log('\nchatgpt 403', account?.id, '\n')
-            const error = new types.ChatError(err.toString())
-            error.type = 'chatgpt:pool:account-on-cooldown'
-            error.isFinal = false
-            error.accountId = account?.id
-            throw error
-          } else if (err.statusCode === 404) {
-            console.log('chatgpt error 404', account?.id)
-
-            throw err
-          } else if (err.statusCode === 503 || err.statusCode === 502) {
-            if (++numRetries <= 1) {
-              console.log(
-                `chatgpt account ${
-                  account?.id
-                } ${err.toString()}; refreshing session`
-              )
-
-              if (await this.tryRefreshSessionForAccount(account?.id)) {
-                continue
-              }
-            }
-
-            console.log('chatgpt COOLDOWN', account?.id, err.statusCode)
-            this._accountsOnCooldown.set(account?.id, true, {
-              maxAge: this._accountCooldownMs * 2
-            })
-
-            const error = new types.ChatError(err.toString())
-            error.type = 'chatgpt:pool:unavailable'
-            error.isFinal = true
-            error.accountId = account?.id
-            throw error
-          } else if (err.statusCode === 500) {
-            console.error('UNEXPECTED CHATGPT ERROR', err)
-
-            if (++numRetries <= 1) {
-              console.log(
-                `chatgpt account ${
-                  account?.id
-                } unexpected error ${err.toString()}; refreshing session`
-              )
-
-              if (await this.tryRefreshSessionForAccount(account?.id)) {
-                continue
-              }
-            }
-          } else {
-            console.error('UNEXPECTED CHATGPT ERROR', err)
-
-            if (++numRetries <= 1) {
-              console.log(
-                `chatgpt account ${
-                  account?.id || accountId || 'unknown'
-                } unexpected error ${err.toString()}; refreshing session`
-              )
-              if (await this.tryRefreshSessionForAccount(account?.id)) {
-                continue
-              }
-            }
-
+          const error = new types.ChatError(err.toString())
+          error.type = 'chatgpt:pool:rate-limit'
+          error.isFinal = false
+          error.accountId = account?.id
+          throw error
+        } else if (err.statusCode === 403) {
+          if (++numRetries <= 1) {
             console.log(
-              'chatgpt COOLDOWN',
-              account?.id || accountId || 'unknown',
-              'unexpected error',
-              err.toString()
+              `chatgpt account ${
+                account?.id
+              } ${err.toString()}; refreshing session`
             )
-            this._accountsOnCooldown.set(account?.id, true, {
-              maxAge: this._accountCooldownMs * 1
-            })
+
+            if (await this.tryRefreshSessionForAccount(account?.id)) {
+              continue
+            }
+          }
+
+          console.log('\nchatgpt 403', account?.id, '\n')
+          const error = new types.ChatError(err.toString())
+          error.type = 'chatgpt:pool:account-on-cooldown'
+          error.isFinal = false
+          error.accountId = account?.id
+          throw error
+        } else if (err.statusCode === 404) {
+          console.log(
+            'chatgpt error 404',
+            account?.id,
+            prompt,
+            rest,
+            err.toString()
+          )
+
+          throw err
+        } else if (err.statusCode === 503 || err.statusCode === 502) {
+          if (++numRetries <= 1) {
+            console.log(
+              `chatgpt account ${
+                account?.id
+              } ${err.toString()}; refreshing session`
+            )
+
+            if (await this.tryRefreshSessionForAccount(account?.id)) {
+              continue
+            }
+          }
+
+          console.log('chatgpt COOLDOWN', account?.id, err.statusCode)
+          this._accountsOnCooldown.set(account?.id, true, {
+            maxAge: this._accountCooldownMs * 2
+          })
+
+          const error = new types.ChatError(err.toString())
+          error.type = 'chatgpt:pool:unavailable'
+          error.isFinal = true
+          error.accountId = account?.id
+          throw error
+        } else if (err.statusCode === 500) {
+          console.error('UNEXPECTED CHATGPT ERROR', err)
+
+          if (++numRetries <= 1) {
+            console.log(
+              `chatgpt account ${
+                account?.id
+              } unexpected error ${err.toString()}; refreshing session`
+            )
+
+            if (await this.tryRefreshSessionForAccount(account?.id)) {
+              continue
+            }
           }
         } else if (err.type === 'chatgpt:pool:account-on-cooldown') {
           throw err
@@ -475,7 +484,7 @@ export class ChatGPTUnofficialProxyAPIPool extends ChatGPTUnofficialProxyAPI {
           }
 
           this._accountsOnCooldown.set(account?.id || accountId, true, {
-            maxAge: this._accountCooldownMs * 10
+            maxAge: this._accountCooldownMs * 5
           })
         }
 
