@@ -18,6 +18,7 @@ import {
 } from './twitter-mentions'
 
 async function main() {
+  const debug = !!process.env.DEBUG
   const dryRun = !!process.env.DRY_RUN
   const noCache = !!process.env.NO_CACHE
   const earlyExit = !!process.env.EARLY_EXIT
@@ -90,7 +91,8 @@ async function main() {
   if (chatgptAccounts) {
     const accounts = JSON.parse(chatgptAccounts)
     chatgpt = new ChatGPTUnofficialProxyAPIPool(accounts, {
-      debug: true,
+      apiReverseProxyUrl: 'https://gpt.pawan.krd/backend-api/conversation',
+      debug: !!debug,
       getAccesstokenFn: generateAccessTokenForOpenAIAccount
     })
 

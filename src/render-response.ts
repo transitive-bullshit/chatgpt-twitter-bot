@@ -1,7 +1,10 @@
 import fs from 'fs/promises'
+import got from 'got'
 import hljs from 'highlight.js'
 import MarkdownIt from 'markdown-it'
+import pMemoize from 'p-memoize'
 import { renderText } from 'puppeteer-render-text'
+import QuickLRU from 'quick-lru'
 import random from 'random'
 import { temporaryFile } from 'tempy'
 
@@ -163,10 +166,35 @@ h6 {
 }
 `
 
+const defaultUserImageUrl =
+  'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png'
+
+const userImageCache = new QuickLRU<string, string>({
+  maxSize: 4096
+})
+
+const getUserImageAsDataUrl = pMemoize(getUserImageAsDataUrlImpl, {
+  cache: userImageCache
+})
+
+async function getUserImageAsDataUrlImpl(
+  userImageUrl: string
+): Promise<string> {
+  const res = await got(userImageUrl, { responseType: 'buffer' })
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch user image: ${userImageUrl}`)
+  }
+
+  return `data:${
+    res.headers['content-type'] || 'image/png'
+  };base64,${res.body.toString('base64')}`
+}
+
 export async function renderResponse({
   prompt,
   response,
-  userImageUrl = 'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png',
+  userImageUrl = defaultUserImageUrl,
   username,
   outputPath,
   htmlOutputPath
@@ -207,8 +235,19 @@ export async function renderResponse({
     )
     .trim()
 
+  let userImageUrlDataUri = userImageUrl
+  try {
+    userImageUrlDataUri = await getUserImageAsDataUrl(userImageUrl)
+  } catch (err) {
+    try {
+      userImageUrlDataUri = await getUserImageAsDataUrl(defaultUserImageUrl)
+    } catch (err) {
+      console.warn('error fetching user image', userImageUrl, err.toString())
+    }
+  }
+
   let userHeader = ''
-  const userImage = `<img class="avatar" src="${userImageUrl}" />`
+  const userImage = `<img class="avatar" src="${userImageUrlDataUri}" />`
   const responseUserImage = `<img class="avatar" src="${logoBase64DataUri}" />`
   if (username) {
     if (!username.startsWith('@')) {
