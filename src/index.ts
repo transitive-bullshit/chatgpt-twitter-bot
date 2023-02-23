@@ -231,37 +231,42 @@ async function main() {
             '\n\nChatGPT auth expired error; possibly unrecoverable. Please update chatgpt\n\n'
           )
 
-          await delay(10000) // 10s
+          await delay(10 * 1000) // 10s
         }
       }
 
-      if (session.isRateLimited || session.isRateLimitedTwitter) {
-        console.log(
-          `rate limited ${
-            session.isRateLimited ? 'chatgpt' : 'twitter'
-          }; sleeping for 2m...`
-        )
-        await delay(2 * 60 * 1000) // 2m
-
-        if (session.isRateLimitedTwitter) {
-          console.log('sleeping longer for twitter rate limit (5m)...')
-          await delay(5 * 60 * 1000) // 5m
-        }
-      }
-
-      // const validSessionInteractions = session.interactions.filter(
-      //   (interaction) =>
-      //     !interaction.error && interaction.responseTweetIds?.length
-      // )
-
-      if (!session.interactions?.length) {
-        // sleep if there were no mentions to process
-        console.log('sleeping for 30s...')
-        await delay(30000)
+      if (session.hasNetworkError) {
+        console.log(`network error; sleeping for 5m...`)
+        await delay(5 * 60 * 1000)
       } else {
-        // still sleep if there are active mentions because of rate limits...
-        console.log('sleeping for 15s...')
-        await delay(15000)
+        if (session.isRateLimited || session.isRateLimitedTwitter) {
+          console.log(
+            `rate limited ${
+              session.isRateLimited ? 'chatgpt' : 'twitter'
+            }; sleeping for 2m...`
+          )
+          await delay(2 * 60 * 1000) // 2m
+
+          if (session.isRateLimitedTwitter) {
+            console.log('sleeping longer for twitter rate limit (5m)...')
+            await delay(5 * 60 * 1000) // 5m
+          }
+        }
+
+        // const validSessionInteractions = session.interactions.filter(
+        //   (interaction) =>
+        //     !interaction.error && interaction.responseTweetIds?.length
+        // )
+
+        if (!session.interactions?.length) {
+          // sleep if there were no mentions to process
+          console.log('sleeping for 30s...')
+          await delay(30000)
+        } else {
+          // still sleep if there are active mentions because of rate limits...
+          console.log('sleeping for 15s...')
+          await delay(15000)
+        }
       }
 
       ++loopNum

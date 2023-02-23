@@ -61,6 +61,7 @@ export interface ChatGPTSession {
   isExpiredAuthTwitter: boolean
   sinceMentionId?: string
   hasAllOpenAIAccountsExpired?: boolean
+  hasNetworkError: boolean
 }
 
 export interface ChatGPTResponse {
@@ -120,6 +121,7 @@ export type TweetMentionResult = {
 export type ChatErrorType =
   | 'unknown'
   | 'timeout'
+  | 'network'
   | 'twitter:auth'
   | 'twitter:forbidden'
   | 'twitter:rate-limit'

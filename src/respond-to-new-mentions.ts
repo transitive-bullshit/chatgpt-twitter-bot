@@ -79,7 +79,8 @@ export async function respondToNewMentions({
     isRateLimitedTwitter: false,
     isExpiredAuth: false,
     isExpiredAuthTwitter: false,
-    hasAllOpenAIAccountsExpired: false
+    hasAllOpenAIAccountsExpired: false,
+    hasNetworkError: false
   }
 
   if (earlyExit) {
@@ -113,6 +114,11 @@ export async function respondToNewMentions({
           priorityScore: mention.priorityScore,
           numFollowers: mention.numFollowers,
           isReply: mention.isReply
+        }
+
+        if (session.hasNetworkError) {
+          result.error = 'network error'
+          return result
         }
 
         if (session.isRateLimited) {
@@ -169,10 +175,23 @@ export async function respondToNewMentions({
               throw error
             }
           } catch (err) {
-            const error = new types.ChatError(err.toString())
-            error.type = 'twitter:forbidden'
-            error.isFinal = true
-            throw error
+            const reason = err.toString()
+            const reasonL = reason.toLowerCase()
+            if (
+              reasonL.includes('fetcherror') ||
+              reasonL.includes('enotfound')
+            ) {
+              const error = new types.ChatError(err.toString())
+              error.type = 'network'
+              error.isFinal = false
+              session.hasNetworkError = true
+              throw error
+            } else {
+              const error = new types.ChatError(err.toString())
+              error.type = 'twitter:forbidden'
+              error.isFinal = true
+              throw error
+            }
           }
 
           const prevResult: types.ChatGPTInteraction = await keyv.get(
@@ -461,6 +480,8 @@ export async function respondToNewMentions({
               }
             } else if (err.type === 'chatgpt:pool:account-on-cooldown') {
               console.error(err.toString())
+            } else if (err.type === 'network') {
+              session.hasNetworkError = true
             } else if (err.type === 'chatgpt:pool:no-accounts') {
               session.hasAllOpenAIAccountsExpired = true
             } else if (err.type === 'openai:response:moderation') {

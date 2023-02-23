@@ -129,6 +129,7 @@ export class ChatGPTUnofficialProxyAPIPool extends ChatGPTUnofficialProxyAPI {
             console.log(
               `ChatGPTUnofficialProxyAPIPool successfully initialized account "${accountId}"`
             )
+            await delay(5000)
             return account
           } catch (err) {
             console.error(
@@ -136,7 +137,7 @@ export class ChatGPTUnofficialProxyAPIPool extends ChatGPTUnofficialProxyAPI {
               err.toString()
             )
 
-            await delay(5000)
+            await delay(10000)
             return null
           }
         },
