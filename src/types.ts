@@ -1,6 +1,9 @@
 import { type Role } from 'chatgpt'
 import { type Client as TwitterClient } from 'twitter-api-sdk'
-import { type DirectMessageCreateV1, type TwitterApiv1 } from 'twitter-api-v2'
+import {
+  type DirectMessageCreateV1, // type UserV1 as TwitterUserV1,
+  type TwitterApiv1
+} from 'twitter-api-v2'
 import { type AsyncReturnType } from 'type-fest'
 
 export { TwitterClient }

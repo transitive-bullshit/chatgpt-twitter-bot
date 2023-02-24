@@ -105,6 +105,10 @@ export class ChatGPTUnofficialProxyAPIPool extends ChatGPTUnofficialProxyAPI {
               return null
             }
 
+            if (index > 2) {
+              await delay(2000)
+            }
+
             console.log('initializing chatgpt account', accountInit)
 
             const accessToken = await this._getAccessTokenFn(accountInit)
@@ -129,7 +133,6 @@ export class ChatGPTUnofficialProxyAPIPool extends ChatGPTUnofficialProxyAPI {
             console.log(
               `ChatGPTUnofficialProxyAPIPool successfully initialized account "${accountId}"`
             )
-            await delay(5000)
             return account
           } catch (err) {
             console.error(
