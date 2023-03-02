@@ -2,6 +2,7 @@ import { ChatGPTUnofficialProxyAPI, type ChatMessage } from 'chatgpt'
 import delay from 'delay'
 import pMap from 'p-map'
 import QuickLRU from 'quick-lru'
+import random from 'random'
 
 import * as types from './types'
 
@@ -92,9 +93,20 @@ export class ChatGPTUnofficialProxyAPIPool extends ChatGPTUnofficialProxyAPI {
       'chatgpt accounts...'
     )
 
+    // randomize account initialization
+    const accountsInit: Array<ChatGPTAPIAccountInit> = []
+    const n = this._accountsInit.length
+    const r = [...Array(n).keys()]
+    for (let i = 0; i < n; ++i) {
+      const j = Math.max(0, random.int(0, r.length - 1))
+      const a = this._accountsInit[r[j]]
+      r.splice(j, 1)
+      accountsInit.push(a)
+    }
+
     this._accounts = (
       await pMap(
-        this._accountsInit,
+        accountsInit,
         async (accountInit, index): Promise<ChatGPTAPIAccount> => {
           let api: ChatGPTUnofficialProxyAPI = null
           const accountId = accountInit.email || `account-${index}`
@@ -140,7 +152,7 @@ export class ChatGPTUnofficialProxyAPIPool extends ChatGPTUnofficialProxyAPI {
               err.toString()
             )
 
-            await delay(10000)
+            await delay(3000)
             return null
           }
         },
@@ -159,8 +171,7 @@ export class ChatGPTUnofficialProxyAPIPool extends ChatGPTUnofficialProxyAPI {
     )
 
     if (!this._accounts.length) {
-      const error = new Error('No ChatGPT accounts authenticated')
-      throw error
+      throw new Error('Failed to initialize all ChatGPT accounts')
     }
 
     console.log(
@@ -168,7 +179,9 @@ export class ChatGPTUnofficialProxyAPIPool extends ChatGPTUnofficialProxyAPI {
       this._accounts.length,
       'chatgpt accounts out of',
       this._accountsInit.length,
-      'total\n'
+      'total accounts',
+      this._accounts.map((a) => a.id),
+      '\n'
     )
   }
 
