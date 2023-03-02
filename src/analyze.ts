@@ -24,7 +24,7 @@ async function main() {
   })
   const { v1: twitterV1 } = twitterApi
 
-  // const res = await twitterV1.users({ screen_name: 'ReplyGPT' })
+  // const res = await twitterV1.users({ screen_name: 'ChatSonicAI' })
   // console.log(JSON.stringify(res, null, 2))
   // return
 

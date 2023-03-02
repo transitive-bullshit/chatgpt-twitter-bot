@@ -26,8 +26,11 @@ export const tweetIgnoreList = new Set([
   '1604326985416613888'
 ])
 
-// ReplyGPT (another bot; we don't want them endlessly replying to each other)
-export const twitterUsersIgnoreList = new Set(['1506967793409065000'])
+// ignore known bots; we don't want them endlessly replying to each other
+export const twitterUsersIgnoreList = new Set([
+  '1506967793409065000', // ReplyGPT
+  '1607692579243687936' // ChatSonicAI
+])
 
 // Used by the author(s) for faster testing and feedback
 export const priorityUsersList = new Set([

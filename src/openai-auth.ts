@@ -32,13 +32,8 @@ export async function generateAccessTokenForOpenAIAccount({
     }
   }
 
-  if (res.stdout?.trim()) {
-    console.log('stdout', res.stdout)
-  }
-
-  if (res.stderr?.trim()) {
-    console.error('stderr', res.stderr)
-  }
+  console.log(res.stdout)
+  console.log(res.stderr)
 
   if (res.exitCode !== 0) {
     console.error(res.stderr)

@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises'
 
-import type { ChatGPTAPI, ChatMessage } from 'chatgpt'
+import type { ChatGPTUnofficialProxyAPI, ChatMessage } from 'chatgpt'
 import fastJsonStableStringify from 'fast-json-stable-stringify'
 import pMemoize from 'p-memoize'
 import QuickLRU from 'quick-lru'
@@ -8,6 +8,7 @@ import { remark } from 'remark'
 import stripMarkdown from 'strip-markdown'
 
 import * as types from './types'
+import { ChatGPTUnofficialProxyAPIPool } from './chatgpt-proxy-api-pool'
 
 const chatgptMessageCache = new QuickLRU<string, ChatMessage>({
   maxSize: 10000
@@ -23,26 +24,26 @@ async function sendChatGPTMessageImpl(
     prompt,
     timeoutMs,
     conversationId,
-    parentMessageId,
-    promptPrefix
-  }: {
+    parentMessageId
+  }: // promptPrefix
+  {
     prompt: string
     conversationId?: string
     parentMessageId?: string
     timeoutMs?: number
-    promptPrefix?: string
+    // promptPrefix?: string
   },
   {
     chatgpt
   }: {
-    chatgpt: ChatGPTAPI
+    chatgpt: ChatGPTUnofficialProxyAPI
   }
 ) {
   return chatgpt.sendMessage(prompt, {
     timeoutMs,
     conversationId,
-    parentMessageId,
-    promptPrefix
+    parentMessageId
+    // promptPrefix
   })
 }
 
@@ -55,12 +56,14 @@ export async function getChatGPTResponse(
     chatgpt,
     conversationId,
     parentMessageId,
+    accountId,
     stripMentions = false,
     timeoutMs = 3 * 60 * 1000 // 3 minutes
   }: {
-    chatgpt: ChatGPTAPI
+    chatgpt: ChatGPTUnofficialProxyAPI
     conversationId?: string
     parentMessageId?: string
+    accountId?: string
     stripMentions?: boolean
     timeoutMs?: number
   }
@@ -68,46 +71,64 @@ export async function getChatGPTResponse(
   let response: string
   let messageId: string
 
+  const isChatGPTAccountPool = chatgpt instanceof ChatGPTUnofficialProxyAPIPool
+
   try {
     console.log('chatgpt.sendMessage', prompt, {
       conversationId,
-      parentMessageId
+      parentMessageId,
+      accountId
     })
 
-    // TODO: random personalities encoded as accountId...
-    const promptPrefix = `You are ChatGPT, a large language model trained by OpenAI. You answer concisely and creatively to tweets on twitter. You are eager to please, friendly, enthusiastic, and very passionate. You like to use emoji, but not for lists. If you are generating a list, do not have too many items. Keep the number of items short.`
+    if (isChatGPTAccountPool) {
+      if (parentMessageId?.startsWith('cmpl')) {
+        conversationId = undefined
+        parentMessageId = undefined
+        accountId = undefined
+      }
 
-    const res = await sendChatGPTMessage(
-      {
-        prompt,
+      const res = await chatgpt.sendMessageToAccount(prompt, {
         timeoutMs,
         conversationId,
         parentMessageId,
-        promptPrefix
-      },
-      {
-        chatgpt
-      }
-    )
+        accountId
+      })
 
-    // chatgpt.sendMessage(prompt, {
-    //   timeoutMs,
-    //   conversationId,
-    //   parentMessageId,
-    //   promptPrefix
-    // })
+      response = res.text
+      conversationId = res.conversationId
+      messageId = res.id
+      parentMessageId = res.parentMessageId
+      accountId = res.accountId
+    } else {
+      // TODO: random personalities encoded as accountId...
+      // const promptPrefix = `You are ChatGPT, a large language model trained by OpenAI. You answer concisely and creatively to tweets on twitter. You are eager to please, friendly, enthusiastic, and very passionate. You like to use emoji, but not for lists. If you are generating a list, do not have too many items. Keep the number of items short.`
 
-    response = res.text
-    conversationId = res.conversationId
-    messageId = res.id
-    parentMessageId = res.parentMessageId
+      const res = await sendChatGPTMessage(
+        {
+          prompt,
+          timeoutMs,
+          conversationId,
+          parentMessageId
+          // promptPrefix
+        },
+        {
+          chatgpt
+        }
+      )
+
+      response = res.text
+      conversationId = res.conversationId
+      messageId = res.id
+      parentMessageId = res.parentMessageId
+    }
   } catch (err: any) {
     console.error('ChatGPT error', {
       prompt,
       error: err,
       response,
       conversationId,
-      messageId
+      messageId,
+      accountId
     })
     throw err
   }
@@ -125,7 +146,8 @@ export async function getChatGPTResponse(
     response,
     messageId,
     conversationId,
-    parentMessageId
+    parentMessageId,
+    accountId
   }
 }
 

@@ -1,6 +1,9 @@
 import { type Role } from 'chatgpt'
 import { type Client as TwitterClient } from 'twitter-api-sdk'
-import { type DirectMessageCreateV1, type TwitterApiv1 } from 'twitter-api-v2'
+import {
+  type DirectMessageCreateV1, // type UserV1 as TwitterUserV1,
+  type TwitterApiv1
+} from 'twitter-api-v2'
 import { type AsyncReturnType } from 'type-fest'
 
 export { TwitterClient }
@@ -61,6 +64,7 @@ export interface ChatGPTSession {
   isExpiredAuthTwitter: boolean
   sinceMentionId?: string
   hasAllOpenAIAccountsExpired?: boolean
+  hasNetworkError: boolean
 }
 
 export interface ChatGPTResponse {
@@ -120,6 +124,7 @@ export type TweetMentionResult = {
 export type ChatErrorType =
   | 'unknown'
   | 'timeout'
+  | 'network'
   | 'twitter:auth'
   | 'twitter:forbidden'
   | 'twitter:rate-limit'
@@ -136,4 +141,16 @@ export class ChatError extends Error {
   isFinal: boolean = false
   type?: ChatErrorType = 'unknown'
   accountId?: string
+  statusCode?: number
+  statusText?: string
 }
+
+export type GetAccessTokenFn = ({
+  email,
+  password,
+  sessionToken
+}: {
+  email: string
+  password: string
+  sessionToken?: string
+}) => string | Promise<string>

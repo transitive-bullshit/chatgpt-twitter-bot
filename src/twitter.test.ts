@@ -33,7 +33,7 @@ test('tweetIdComparator', (t) => {
   t.is(tweetIdComparator('3001', '3001'), 0)
 })
 
-test.only('tweetComparator', (t) => {
+test('tweetComparator', (t) => {
   t.is(tweetComparator({ id: '100' }, { id: '200' }), -1)
   t.is(tweetComparator({ id: '3000' }, { id: '999' }), 1)
   t.is(tweetComparator({ id: '3001' }, { id: '3001' }), 0)

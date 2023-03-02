@@ -1,14 +1,17 @@
-import { ChatGPTAPI } from 'chatgpt'
+import * as https from 'node:https'
+
 import delay from 'delay'
 import { Client as TwitterClient, auth } from 'twitter-api-sdk'
 import { TwitterApi } from 'twitter-api-v2'
 
 import * as types from './types'
+import { ChatGPTUnofficialProxyAPIPool } from './chatgpt-proxy-api-pool'
 import config, {
   defaultMaxNumMentionsToProcessPerBatch,
   twitterBotUserId
 } from './config'
 import { messageStore } from './keyv'
+import { generateAccessTokenForOpenAIAccount } from './openai-auth'
 import { respondToNewMentions } from './respond-to-new-mentions'
 import { maxTwitterId } from './twitter'
 import {
@@ -16,7 +19,12 @@ import {
   saveAllUserMentionCachesToDisk
 } from './twitter-mentions'
 
+const agent = new https.Agent({
+  keepAlive: true
+})
+
 async function main() {
+  const debug = !!process.env.DEBUG
   const dryRun = !!process.env.DRY_RUN
   const noCache = !!process.env.NO_CACHE
   const earlyExit = !!process.env.EARLY_EXIT
@@ -29,6 +37,8 @@ async function main() {
     process.env.MAX_NUM_MENTIONS_TO_PROCESS,
     10
   )
+  const chatgptAccounts = process.env.CHATGPT_ACCOUNTS
+  const openaiReverseProxy = process.env.OPENAI_REVERSE_PROXY
 
   const refreshToken = defaultRefreshToken || config.get('refreshToken')
   // const accessToken = undefined // config.get('accessToken')
@@ -83,16 +93,40 @@ async function main() {
   }
 
   // intialize chatgpt
-  const chatgpt = new ChatGPTAPI({
-    apiKey: process.env.OPENAI_API_KEY,
-    debug: false,
-    getMessageById: async (id) => {
-      return messageStore.get(id)
-    },
-    upsertMessage: async (message) => {
-      await messageStore.set(message.id, message)
-    }
-  })
+  let chatgpt: ChatGPTUnofficialProxyAPIPool
+
+  if (chatgptAccounts) {
+    const accounts = JSON.parse(chatgptAccounts)
+    chatgpt = new ChatGPTUnofficialProxyAPIPool(accounts, {
+      apiReverseProxyUrl: openaiReverseProxy || undefined,
+      debug: !!debug,
+      getAccesstokenFn: generateAccessTokenForOpenAIAccount,
+      fetch: async (url, options) => {
+        return fetch(url, {
+          ...options,
+          headers: {
+            ...options.headers,
+            // 'keep-alive': 'timeout=360',
+            accept: 'text/event-stream'
+          },
+          keepalive: true
+        })
+      }
+    })
+
+    await chatgpt.init()
+
+    // const chatgpt = new ChatGPTAPI({
+    //   apiKey: process.env.OPENAI_API_KEY,
+    //   debug: false,
+    //   getMessageById: async (id) => {
+    //     return messageStore.get(id)
+    //   },
+    //   upsertMessage: async (message) => {
+    //     await messageStore.set(message.id, message)
+    //   }
+    // })
+  }
 
   console.log()
   await loadUserMentionCacheFromDiskByUserId({ userId: twitterBotUserId })
@@ -197,37 +231,42 @@ async function main() {
             '\n\nChatGPT auth expired error; possibly unrecoverable. Please update chatgpt\n\n'
           )
 
-          await delay(10000) // 10s
+          await delay(10 * 1000) // 10s
         }
       }
 
-      if (session.isRateLimited || session.isRateLimitedTwitter) {
-        console.log(
-          `rate limited ${
-            session.isRateLimited ? 'chatgpt' : 'twitter'
-          }; sleeping for 2m...`
-        )
-        await delay(2 * 60 * 1000) // 2m
-
-        if (session.isRateLimitedTwitter) {
-          console.log('sleeping longer for twitter rate limit (5m)...')
-          await delay(5 * 60 * 1000) // 5m
-        }
-      }
-
-      // const validSessionInteractions = session.interactions.filter(
-      //   (interaction) =>
-      //     !interaction.error && interaction.responseTweetIds?.length
-      // )
-
-      if (!session.interactions?.length) {
-        // sleep if there were no mentions to process
-        console.log('sleeping for 30s...')
-        await delay(30000)
+      if (session.hasNetworkError) {
+        console.log(`network error; sleeping for 5m...`)
+        await delay(5 * 60 * 1000)
       } else {
-        // still sleep if there are active mentions because of rate limits...
-        console.log('sleeping for 15s...')
-        await delay(15000)
+        if (session.isRateLimited || session.isRateLimitedTwitter) {
+          console.log(
+            `rate limited ${
+              session.isRateLimited ? 'chatgpt' : 'twitter'
+            }; sleeping for 2m...`
+          )
+          await delay(2 * 60 * 1000) // 2m
+
+          if (session.isRateLimitedTwitter) {
+            console.log('sleeping longer for twitter rate limit (5m)...')
+            await delay(5 * 60 * 1000) // 5m
+          }
+        }
+
+        // const validSessionInteractions = session.interactions.filter(
+        //   (interaction) =>
+        //     !interaction.error && interaction.responseTweetIds?.length
+        // )
+
+        if (!session.interactions?.length) {
+          // sleep if there were no mentions to process
+          console.log('sleeping for 30s...')
+          await delay(30000)
+        } else {
+          // still sleep if there are active mentions because of rate limits...
+          console.log('sleeping for 15s...')
+          await delay(15000)
+        }
       }
 
       ++loopNum

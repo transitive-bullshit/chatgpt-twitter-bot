@@ -1,9 +1,10 @@
-import { ChatGPTAPI } from 'chatgpt'
+import { ChatGPTUnofficialProxyAPI } from 'chatgpt'
 import delay from 'delay'
 import pMap from 'p-map'
 import rmfr from 'rmfr'
 
 import * as types from './types'
+// import { ChatGPTUnofficialProxyAPIPool } from './chatgpt-proxy-api-pool'
 import { enableRedis, twitterBotHandle, twitterBotUserId } from './config'
 import { keyv } from './keyv'
 import { getTweetMentionsBatch } from './mentions'
@@ -36,7 +37,7 @@ export async function respondToNewMentions({
   debugTweet?: string
   resolveAllMentions?: boolean
   maxNumMentionsToProcess?: number
-  chatgpt: ChatGPTAPI
+  chatgpt: ChatGPTUnofficialProxyAPI
   twitter: types.TwitterClient
   twitterV1: types.TwitterClientV1
   sinceMentionId?: string
@@ -78,7 +79,8 @@ export async function respondToNewMentions({
     isRateLimitedTwitter: false,
     isExpiredAuth: false,
     isExpiredAuthTwitter: false,
-    hasAllOpenAIAccountsExpired: false
+    hasAllOpenAIAccountsExpired: false,
+    hasNetworkError: false
   }
 
   if (earlyExit) {
@@ -89,15 +91,18 @@ export async function respondToNewMentions({
     return session
   }
 
+  // const isChatGPTAccountPool = chatgpt instanceof ChatGPTUnofficialProxyAPIPool
+  // const concurrency = isChatGPTAccountPool ? 4 : 1
+
   const results = (
     await pMap(
       batch.mentions,
-      async (mention): Promise<types.ChatGPTInteraction> => {
+      async (mention, index): Promise<types.ChatGPTInteraction> => {
         const { prompt, id: promptTweetId, author_id: promptUserId } = mention
         const promptUser = batch.users[mention.author_id]
         const promptUsername = promptUser?.username
 
-        const result: types.ChatGPTInteraction = {
+        let result: types.ChatGPTInteraction = {
           promptTweetId,
           promptUserId,
           promptUsername,
@@ -109,6 +114,11 @@ export async function respondToNewMentions({
           priorityScore: mention.priorityScore,
           numFollowers: mention.numFollowers,
           isReply: mention.isReply
+        }
+
+        if (session.hasNetworkError) {
+          result.error = 'network error'
+          return result
         }
 
         if (session.isRateLimited) {
@@ -142,11 +152,11 @@ export async function respondToNewMentions({
           return result
         }
 
-        // if (index > 0) {
-        //   // slight slow down between ChatGPT requests
-        //   console.log('pausing for chatgpt...')
-        //   await delay(6000)
-        // }
+        if (index > 0) {
+          // slight slow down between ChatGPT requests
+          console.log('pausing for chatgpt...')
+          await delay(6000)
+        }
 
         try {
           // Double-check that the tweet still exists before asking ChatGPT to
@@ -165,99 +175,140 @@ export async function respondToNewMentions({
               throw error
             }
           } catch (err) {
-            const error = new types.ChatError(err.toString())
-            error.type = 'twitter:forbidden'
-            error.isFinal = true
-            throw error
-          }
-
-          console.log(
-            'processing',
-            pick(
-              mention,
-              'id',
-              'text',
-              'prompt',
-              'promptUrl',
-              'isReply',
-              'numFollowers',
-              'priorityScore'
-            )
-          )
-
-          const promptModerationResult = await checkModeration(prompt)
-          if (promptModerationResult.flagged) {
-            const reason = Object.keys(promptModerationResult.categories)
-              .filter((key) => promptModerationResult.categories[key])
-              .join(', ')
-            const error = new types.ChatError(
-              `prompt flagged for moderation: ${reason}`
-            )
-            error.type = 'openai:prompt:moderation'
-            error.isFinal = true
-            result.isErrorFinal = true
-            console.error(error.toString(), promptModerationResult)
-            throw error
-          }
-
-          const repliedToTweetRef = mention.referenced_tweets?.find(
-            (t) => t.type === 'replied_to'
-          )
-          const repliedToTweet = repliedToTweetRef
-            ? batch.tweets[repliedToTweetRef.id]
-            : null
-
-          if (repliedToTweet && repliedToTweet.author_id === twitterBotUserId) {
-            const prevInteraction: types.ChatGPTInteraction = await keyv.get(
-              repliedToTweet.id
-            )
-
-            if (prevInteraction && !prevInteraction.error) {
-              console.log('prevInteraction', prevInteraction)
-
-              // prevInteraction.role should equal 'assistant'
-              result.chatgptConversationId =
-                prevInteraction.chatgptConversationId
-              result.chatgptParentMessageId = prevInteraction.chatgptMessageId
-              result.chatgptAccountId = prevInteraction.chatgptAccountId
+            const reason = err.toString()
+            const reasonL = reason.toLowerCase()
+            if (
+              reasonL.includes('fetcherror') ||
+              reasonL.includes('enotfound')
+            ) {
+              const error = new types.ChatError(err.toString())
+              error.type = 'network'
+              error.isFinal = false
+              session.hasNetworkError = true
+              throw error
+            } else {
+              const error = new types.ChatError(err.toString())
+              error.type = 'twitter:forbidden'
+              error.isFinal = true
+              throw error
             }
           }
 
-          const chatgptResponse = await getChatGPTResponse(prompt, {
-            chatgpt,
-            stripMentions: false,
-            conversationId: result.chatgptConversationId,
-            parentMessageId: result.chatgptParentMessageId
-          })
+          const prevResult: types.ChatGPTInteraction = await keyv.get(
+            promptTweetId
+          )
 
-          // console.log('chatgptResponse', chatgptResponse)
-          const response = chatgptResponse.response
-          result.response = response
-          result.chatgptConversationId = chatgptResponse.conversationId
-          result.chatgptMessageId = chatgptResponse.messageId
-          result.chatgptParentMessageId = chatgptResponse.parentMessageId
-          result.chatgptAccountId = chatgptResponse.accountId
+          if (prevResult?.response) {
+            result = {
+              ...prevResult,
+              ...result
+            }
 
-          const responseModerationResult = await checkModeration(response)
-          if (responseModerationResult.flagged) {
-            const reason = Object.keys(responseModerationResult.categories)
-              .filter((key) => responseModerationResult.categories[key])
-              .join(', ')
-            const error = new types.ChatError(
-              `response flagged for moderation: ${reason}`
+            console.log('resuming', {
+              ...pick(
+                mention,
+                'id',
+                'text',
+                'prompt',
+                'promptUrl',
+                'isReply',
+                'numFollowers',
+                'priorityScore'
+              ),
+              ...pick(result, 'response', 'error')
+            })
+          } else {
+            console.log(
+              'processing',
+              pick(
+                mention,
+                'id',
+                'text',
+                'prompt',
+                'promptUrl',
+                'isReply',
+                'numFollowers',
+                'priorityScore'
+              )
             )
-            error.type = 'openai:response:moderation'
-            error.isFinal = true
-            result.isErrorFinal = true
-            console.error(error.toString(), responseModerationResult)
-            throw error
+
+            const promptModerationResult = await checkModeration(prompt)
+            if (promptModerationResult.flagged) {
+              const reason = Object.keys(promptModerationResult.categories)
+                .filter((key) => promptModerationResult.categories[key])
+                .join(', ')
+              const error = new types.ChatError(
+                `prompt flagged for moderation: ${reason}`
+              )
+              error.type = 'openai:prompt:moderation'
+              error.isFinal = true
+              result.isErrorFinal = true
+              console.error(error.toString(), promptModerationResult)
+              throw error
+            }
+
+            const repliedToTweetRef = mention.referenced_tweets?.find(
+              (t) => t.type === 'replied_to'
+            )
+            const repliedToTweet = repliedToTweetRef
+              ? batch.tweets[repliedToTweetRef.id]
+              : null
+
+            if (
+              repliedToTweet &&
+              repliedToTweet.author_id === twitterBotUserId
+            ) {
+              const prevInteraction: types.ChatGPTInteraction = await keyv.get(
+                repliedToTweet.id
+              )
+
+              if (prevInteraction && !prevInteraction.error) {
+                console.log('prevInteraction', prevInteraction)
+
+                // prevInteraction.role should equal 'assistant'
+                result.chatgptConversationId =
+                  prevInteraction.chatgptConversationId
+                result.chatgptParentMessageId = prevInteraction.chatgptMessageId
+                result.chatgptAccountId = prevInteraction.chatgptAccountId
+              }
+            }
+
+            const chatgptResponse = await getChatGPTResponse(prompt, {
+              chatgpt,
+              stripMentions: false,
+              conversationId: result.chatgptConversationId,
+              parentMessageId: result.chatgptParentMessageId
+            })
+
+            // console.log('chatgptResponse', chatgptResponse)
+            const response = chatgptResponse.response
+            result.response = response
+            result.chatgptConversationId = chatgptResponse.conversationId
+            result.chatgptMessageId = chatgptResponse.messageId
+            result.chatgptParentMessageId = chatgptResponse.parentMessageId
+            result.chatgptAccountId = chatgptResponse.accountId
+
+            const responseModerationResult = await checkModeration(response)
+            if (responseModerationResult.flagged) {
+              const reason = Object.keys(responseModerationResult.categories)
+                .filter((key) => responseModerationResult.categories[key])
+                .join(', ')
+              const error = new types.ChatError(
+                `response flagged for moderation: ${reason}`
+              )
+              error.type = 'openai:response:moderation'
+              error.isFinal = true
+              result.isErrorFinal = true
+              console.error(error.toString(), responseModerationResult)
+              throw error
+            }
           }
 
-          {
+          if (!result.responseMediaId) {
             // Render the response as an image
             const imageFilePath = await renderResponse({
               prompt,
-              response,
+              response: result.response,
               userImageUrl: promptUser?.profile_image_url,
               username: promptUsername
             })
@@ -266,7 +317,7 @@ export async function respondToNewMentions({
               promptTweetId,
               prompt,
               imageFilePath,
-              response
+              response: result.response
             })
 
             const mediaId = dryRun
@@ -277,25 +328,27 @@ export async function respondToNewMentions({
                   target: 'tweet'
                 })
 
+            result.responseMediaId = mediaId
+
+            // Cleanup
+            await rmfr(imageFilePath)
+
             if (mediaId) {
               console.log('twitter media', mediaId)
 
               try {
                 // TODO
-                const text = markdownToText(response)
+                const text = markdownToText(result.response)
                   ?.trim()
                   .slice(0, 1000)
                   .trim()
 
                 if (text) {
-                  const metadata = await twitterV1.createMediaMetadata(
-                    mediaId,
-                    {
-                      alt_text: {
-                        text
-                      }
+                  await twitterV1.createMediaMetadata(mediaId, {
+                    alt_text: {
+                      text
                     }
-                  )
+                  })
                 }
               } catch (err) {
                 console.warn(
@@ -305,26 +358,22 @@ export async function respondToNewMentions({
                 )
               }
             }
-
-            const tweet = await createTweet(
-              {
-                // text: '',
-                media: {
-                  media_ids: [mediaId]
-                },
-                reply: {
-                  in_reply_to_tweet_id: promptTweetId
-                }
-              },
-              { twitter, dryRun }
-            )
-
-            result.responseMediaId = mediaId
-            result.responseTweetIds = [tweet?.id].filter(Boolean)
-
-            // Cleanup
-            await rmfr(imageFilePath)
           }
+
+          const tweet = await createTweet(
+            {
+              // text: '',
+              media: {
+                media_ids: [result.responseMediaId]
+              },
+              reply: {
+                in_reply_to_tweet_id: promptTweetId
+              }
+            },
+            { twitter, dryRun }
+          )
+
+          result.responseTweetIds = [tweet?.id].filter(Boolean)
 
           let responseLastTweetId: string
           if (result.responseTweetIds?.length) {
@@ -336,6 +385,9 @@ export async function respondToNewMentions({
               id: responseLastTweetId
             })
           }
+
+          // Remove any previous error processing this request
+          delete result.error
 
           console.log('interaction', result)
           console.log()
@@ -428,6 +480,8 @@ export async function respondToNewMentions({
               }
             } else if (err.type === 'chatgpt:pool:account-on-cooldown') {
               console.error(err.toString())
+            } else if (err.type === 'network') {
+              session.hasNetworkError = true
             } else if (err.type === 'chatgpt:pool:no-accounts') {
               session.hasAllOpenAIAccountsExpired = true
             } else if (err.type === 'openai:response:moderation') {
@@ -480,13 +534,13 @@ export async function respondToNewMentions({
               }
             }
           } else if (
-            err.toString().toLowerCase() === 'error: chatgptapi error 429'
+            err.toString().toLowerCase() === 'error: ChatGPT error 429'
           ) {
             console.log('\nchatgpt rate limit\n')
             session.isRateLimited = true
           } else if (
-            err.toString().toLowerCase() === 'error: chatgptapi error 503' ||
-            err.toString().toLowerCase() === 'error: chatgptapi error 502'
+            err.toString().toLowerCase() === 'error: ChatGPT error 503' ||
+            err.toString().toLowerCase() === 'error: ChatGPT error 502'
           ) {
             if (!mention.numFollowers || mention.numFollowers < 4000) {
               // TODO: for now, we won't worry about trying to deal with retrying these requests
@@ -526,14 +580,14 @@ export async function respondToNewMentions({
             result.chatgptAccountId = err.accountId
           }
 
-          result.error = err.toString()
+          result.error = err.toString() || 'unknown error'
           result.isErrorFinal = !!isFinal
 
           console.log('interaction error', result)
           console.log()
 
-          if (result.isErrorFinal && enableRedis && !dryRun) {
-            // Store final errors so we don't try to re-process them
+          if (enableRedis && !dryRun) {
+            // Store errors so we don't try to re-process them
             await keyv.set(promptTweetId, { ...result, role: 'user' })
           }
 
@@ -541,7 +595,7 @@ export async function respondToNewMentions({
         }
       },
       {
-        concurrency: 3
+        concurrency: 2
       }
     )
   ).filter(Boolean)
