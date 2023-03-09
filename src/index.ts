@@ -114,7 +114,9 @@ async function main() {
       }
     })
 
-    await chatgpt.init()
+    if (!dryRun && !earlyExit) {
+      await chatgpt.init()
+    }
 
     // const chatgpt = new ChatGPTAPI({
     //   apiKey: process.env.OPENAI_API_KEY,

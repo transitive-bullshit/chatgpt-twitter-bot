@@ -77,6 +77,7 @@ export async function getTweetMentionsBatch({
 
   // Sort the oldest mentions first
   batch.mentions = batch.mentions.sort(tweetComparator)
+  const prevInteractions: Record<string, types.ChatGPTInteraction> = {}
 
   // Filter any mentions which we've already replied to
   if (!forceReply) {
@@ -89,6 +90,17 @@ export async function getTweetMentionsBatch({
             updateSinceMentionId(mention.id)
             return null
           } else {
+            const repliedToTweetRef = mention.referenced_tweets?.find(
+              (t) => t.type === 'replied_to'
+            )
+            if (repliedToTweetRef?.id) {
+              try {
+                const repliedToInteraction: types.ChatGPTInteraction =
+                  await keyv.get(repliedToTweetRef.id)
+                prevInteractions[repliedToTweetRef.id] = repliedToInteraction
+              } catch (err) {}
+            }
+
             return mention
           }
         },
@@ -120,7 +132,39 @@ export async function getTweetMentionsBatch({
     mention.isReply = isReply
 
     if (isReply) {
-      score -= 3
+      let penalty = 10
+
+      const prevInteraction = prevInteractions[repliedToTweetRef.id]
+      const repliedToTweet = batch.tweets[repliedToTweetRef.id]
+
+      if (repliedToTweet?.author_id === twitterBotUserId) {
+        // continuing the conversation
+        penalty /= 3
+      } else if (!prevInteraction) {
+        penalty *= 5
+      }
+
+      if (prevInteraction) {
+        if (prevInteraction.promptUserId === mention.author_id) {
+          // continuing the conversation
+          penalty /= 2
+        } else {
+          penalty *= 10
+        }
+
+        if (prevInteraction.responseUrl && !prevInteraction.error) {
+          // continuing the conversation normally
+        } else if (prevInteraction.error && !prevInteraction.isErrorFinal) {
+          penalty *= 1000
+        } else {
+          penalty *= 10
+        }
+      } else if (!repliedToTweet) {
+        // possibly deleted
+        penalty *= 100
+      }
+
+      score -= penalty
     }
 
     if (priorityUsersList.has(mention.author_id)) {
@@ -200,7 +244,8 @@ export async function populateTweetMentionsBatch({
       'public_metrics',
       'conversation_id',
       'in_reply_to_user_id',
-      'referenced_tweets'
+      'referenced_tweets',
+      'text'
     ],
     'user.fields': ['profile_image_url', 'public_metrics']
   }
@@ -313,6 +358,10 @@ export function getNumMentionsInText(
 
 /**
  * @returns `true` if the mention is valid to respond to; `false` otherwise
+ *
+ * @TODO: this would be *a lot* simpler if twitter fixed not including `display_text_range` in tweets returned by the v2 API:
+ * - https://twittercommunity.com/t/display-text-range-not-included-in-api-v2-tweet-lookup-or-statuses-user-timeline/161896/4
+ * - https://twittercommunity.com/t/is-there-a-way-to-get-something-like-display-text-range-in-api-v2/172689/3
  */
 export function isValidMention(
   mention: types.TweetMention,
@@ -409,7 +458,7 @@ export function isValidMention(
       //   numMentions
       // })
 
-      updateSinceMentionId(mention.id)
+      updateSinceMentionId?.(mention.id)
       return false
     } else if (numMentions === 1) {
       // TODO: I don't think this is necessary anymore
@@ -417,7 +466,7 @@ export function isValidMention(
       //   console.log('ignoring mention 1', mention, {
       //     numMentions
       //   })
-      //   updateSinceMentionId(mention.id)
+      //   updateSinceMentionId?.(mention.id)
       //   return false
       // }
     }
@@ -426,7 +475,7 @@ export function isValidMention(
     //   numMentions
     // })
 
-    updateSinceMentionId(mention.id)
+    updateSinceMentionId?.(mention.id)
     return false
   }
 
