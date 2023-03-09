@@ -1,4 +1,4 @@
-import { ChatGPTUnofficialProxyAPI } from 'chatgpt'
+import { ChatGPTAPI } from 'chatgpt'
 import delay from 'delay'
 import pMap from 'p-map'
 import rmfr from 'rmfr'
@@ -37,7 +37,7 @@ export async function respondToNewMentions({
   debugTweet?: string
   resolveAllMentions?: boolean
   maxNumMentionsToProcess?: number
-  chatgpt: ChatGPTUnofficialProxyAPI
+  chatgpt: ChatGPTAPI
   twitter: types.TwitterClient
   twitterV1: types.TwitterClientV1
   sinceMentionId?: string
@@ -152,11 +152,11 @@ export async function respondToNewMentions({
           return result
         }
 
-        if (index > 0) {
-          // slight slow down between ChatGPT requests
-          console.log('pausing for chatgpt...')
-          await delay(6000)
-        }
+        // if (index > 0) {
+        //   // slight slow down between ChatGPT requests
+        //   console.log('pausing for chatgpt...')
+        //   await delay(6000)
+        // }
 
         try {
           // Double-check that the tweet still exists before asking ChatGPT to
@@ -277,7 +277,8 @@ export async function respondToNewMentions({
               chatgpt,
               stripMentions: false,
               conversationId: result.chatgptConversationId,
-              parentMessageId: result.chatgptParentMessageId
+              parentMessageId: result.chatgptParentMessageId,
+              accountId: result.chatgptAccountId
             })
 
             // console.log('chatgptResponse', chatgptResponse)

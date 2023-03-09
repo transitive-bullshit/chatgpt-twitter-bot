@@ -1,11 +1,12 @@
 import * as https from 'node:https'
 
+import { ChatGPTAPI } from 'chatgpt'
 import delay from 'delay'
 import { Client as TwitterClient, auth } from 'twitter-api-sdk'
 import { TwitterApi } from 'twitter-api-v2'
 
 import * as types from './types'
-import { ChatGPTUnofficialProxyAPIPool } from './chatgpt-proxy-api-pool'
+// import { ChatGPTUnofficialProxyAPIPool } from './chatgpt-proxy-api-pool'
 import config, {
   defaultMaxNumMentionsToProcessPerBatch,
   twitterBotUserId
@@ -92,43 +93,43 @@ async function main() {
     throw new Error('twitter error unable to fetch current user')
   }
 
-  // intialize chatgpt
-  let chatgpt: ChatGPTUnofficialProxyAPIPool
+  // intialize chatgpt account pool
+  // let chatgpt: ChatGPTUnofficialProxyAPIPool
 
-  if (chatgptAccounts) {
-    const accounts = JSON.parse(chatgptAccounts)
-    chatgpt = new ChatGPTUnofficialProxyAPIPool(accounts, {
-      apiReverseProxyUrl: openaiReverseProxy || undefined,
-      debug: !!debug,
-      getAccesstokenFn: generateAccessTokenForOpenAIAccount,
-      fetch: async (url, options) => {
-        return fetch(url, {
-          ...options,
-          headers: {
-            ...options.headers,
-            // 'keep-alive': 'timeout=360',
-            accept: 'text/event-stream'
-          },
-          keepalive: true
-        })
-      }
-    })
+  // if (chatgptAccounts) {
+  //   const accounts = JSON.parse(chatgptAccounts)
+  //   chatgpt = new ChatGPTUnofficialProxyAPIPool(accounts, {
+  //     apiReverseProxyUrl: openaiReverseProxy || undefined,
+  //     debug: !!debug,
+  //     getAccesstokenFn: generateAccessTokenForOpenAIAccount,
+  //     fetch: async (url, options) => {
+  //       return fetch(url, {
+  //         ...options,
+  //         headers: {
+  //           ...options.headers,
+  //           // 'keep-alive': 'timeout=360',
+  //           accept: 'text/event-stream'
+  //         },
+  //         keepalive: true
+  //       })
+  //     }
+  //   })
 
-    if (!dryRun && !earlyExit) {
-      await chatgpt.init()
+  //   if (!dryRun && !earlyExit) {
+  //     await chatgpt.init()
+  //   }
+  // }
+
+  const chatgpt = new ChatGPTAPI({
+    apiKey: process.env.OPENAI_API_KEY,
+    debug: false,
+    getMessageById: async (id) => {
+      return messageStore.get(id)
+    },
+    upsertMessage: async (message) => {
+      await messageStore.set(message.id, message)
     }
-
-    // const chatgpt = new ChatGPTAPI({
-    //   apiKey: process.env.OPENAI_API_KEY,
-    //   debug: false,
-    //   getMessageById: async (id) => {
-    //     return messageStore.get(id)
-    //   },
-    //   upsertMessage: async (message) => {
-    //     await messageStore.set(message.id, message)
-    //   }
-    // })
-  }
+  })
 
   console.log()
   await loadUserMentionCacheFromDiskByUserId({ userId: twitterBotUserId })

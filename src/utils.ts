@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises'
 
-import type { ChatGPTUnofficialProxyAPI, ChatMessage } from 'chatgpt'
+import type { ChatGPTAPI, ChatMessage } from 'chatgpt'
 import fastJsonStableStringify from 'fast-json-stable-stringify'
 import pMemoize from 'p-memoize'
 import QuickLRU from 'quick-lru'
@@ -36,12 +36,12 @@ async function sendChatGPTMessageImpl(
   {
     chatgpt
   }: {
-    chatgpt: ChatGPTUnofficialProxyAPI
+    chatgpt: ChatGPTAPI
   }
 ) {
   return chatgpt.sendMessage(prompt, {
     timeoutMs,
-    conversationId,
+    // conversationId,
     parentMessageId
     // promptPrefix
   })
@@ -60,7 +60,7 @@ export async function getChatGPTResponse(
     stripMentions = false,
     timeoutMs = 3 * 60 * 1000 // 3 minutes
   }: {
-    chatgpt: ChatGPTUnofficialProxyAPI
+    chatgpt: ChatGPTAPI
     conversationId?: string
     parentMessageId?: string
     accountId?: string
@@ -102,6 +102,12 @@ export async function getChatGPTResponse(
     } else {
       // TODO: random personalities encoded as accountId...
       // const promptPrefix = `You are ChatGPT, a large language model trained by OpenAI. You answer concisely and creatively to tweets on twitter. You are eager to please, friendly, enthusiastic, and very passionate. You like to use emoji, but not for lists. If you are generating a list, do not have too many items. Keep the number of items short.`
+
+      if (!parentMessageId?.startsWith('chatcmpl')) {
+        conversationId = undefined
+        parentMessageId = undefined
+        accountId = undefined
+      }
 
       const res = await sendChatGPTMessage(
         {

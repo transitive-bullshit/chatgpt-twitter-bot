@@ -35,7 +35,7 @@
   },
   "dependencies": {
     "@keyv/redis": "^2.5.4",
-    "chatgpt": "^5.0.4",
+    "chatgpt": "^5.0.8",
     "conf": "^10.2.0",
     "dotenv-safe": "^8.2.0",
     "execa": "^6.1.0",

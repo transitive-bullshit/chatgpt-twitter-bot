@@ -12,7 +12,7 @@ import { getTweetsByIds, tweetIdComparator } from './twitter'
 import { saveJsonFile } from './utils'
 
 async function main() {
-  const analyze = !!process.env.ANALYZE
+  const exportStats = !!process.env.EXPORT_STATS
   const exportData = !!process.env.EXPORT
   const minTweetId = process.env.MIN_TWEET_ID || '0'
 
@@ -52,7 +52,7 @@ async function main() {
     )
 
     return
-  } else if (analyze) {
+  } else if (exportStats) {
     // for (const interaction of interactions) {
     //   if (interaction.promptUsername === 'pandaspende') {
     //     console.log(interaction)
