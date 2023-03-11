@@ -1,4 +1,5 @@
-import * as https from 'node:https'
+// import * as https from 'node:https'
+import { EventEmitter } from 'node:events'
 
 import { ChatGPTAPI } from 'chatgpt'
 import delay from 'delay'
@@ -20,9 +21,9 @@ import {
   saveAllUserMentionCachesToDisk
 } from './twitter-mentions'
 
-const agent = new https.Agent({
-  keepAlive: true
-})
+// const agent = new https.Agent({
+//   keepAlive: true
+// })
 
 async function main() {
   const debug = !!process.env.DEBUG
@@ -38,8 +39,12 @@ async function main() {
     process.env.MAX_NUM_MENTIONS_TO_PROCESS,
     10
   )
-  const chatgptAccounts = process.env.CHATGPT_ACCOUNTS
-  const openaiReverseProxy = process.env.OPENAI_REVERSE_PROXY
+  // const chatgptAccounts = process.env.CHATGPT_ACCOUNTS
+  // const openaiReverseProxy = process.env.OPENAI_REVERSE_PROXY
+
+  // try to remove node.js warnings about too many event listeners
+  EventEmitter.defaultMaxListeners = 100
+  process.setMaxListeners(100)
 
   const refreshToken = defaultRefreshToken || config.get('refreshToken')
   // const accessToken = undefined // config.get('accessToken')
@@ -128,6 +133,12 @@ async function main() {
     },
     upsertMessage: async (message) => {
       await messageStore.set(message.id, message)
+    },
+    fetch: async (url, options) => {
+      return fetch(url, {
+        keepalive: true,
+        ...options
+      })
     }
   })
 
@@ -239,8 +250,8 @@ async function main() {
       }
 
       if (session.hasNetworkError) {
-        console.log(`network error; sleeping for 5m...`)
-        await delay(5 * 60 * 1000)
+        console.log(`network error; sleeping for 2m...`)
+        await delay(2 * 60 * 1000)
       } else {
         if (session.isRateLimited || session.isRateLimitedTwitter) {
           console.log(
@@ -251,8 +262,8 @@ async function main() {
           await delay(2 * 60 * 1000) // 2m
 
           if (session.isRateLimitedTwitter) {
-            console.log('sleeping longer for twitter rate limit (5m)...')
-            await delay(5 * 60 * 1000) // 5m
+            console.log('sleeping longer for twitter rate limit (3m)...')
+            await delay(3 * 60 * 1000) // 3m
           }
         }
 
@@ -267,8 +278,8 @@ async function main() {
           await delay(30000)
         } else {
           // still sleep if there are active mentions because of rate limits...
-          console.log('sleeping for 15s...')
-          await delay(15000)
+          console.log('sleeping for 5s...')
+          await delay(5000)
         }
       }
 
