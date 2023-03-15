@@ -309,6 +309,7 @@ export function getPrompt(text?: string): string {
     .replace(/^\s*@[a-zA-Z0-9_]+/g, '')
     .replace(/^\s*@[a-zA-Z0-9_]+/g, '')
     .replace(rUrl, '')
+    .replace(/ *#gpt4\b */gi, ' ')
     .trim()
     .replace(/^,\s*/, '')
     .trim()
@@ -409,6 +410,7 @@ export function isValidMention(
   }
 
   let text = mention.text
+  mention.isGPT4 = /#gpt4\b/i.test(text)
   mention.prompt = getPrompt(text)
 
   if (

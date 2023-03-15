@@ -104,6 +104,7 @@ export type TweetMention = Partial<Tweet> & {
   numFollowers?: number
   promptUrl?: string
   isReply?: boolean
+  isGPT4?: boolean
 }
 
 export type TweetMentionBatch = {

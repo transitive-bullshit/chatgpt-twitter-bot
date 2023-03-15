@@ -113,7 +113,8 @@ export async function respondToNewMentions({
           }),
           priorityScore: mention.priorityScore,
           numFollowers: mention.numFollowers,
-          isReply: mention.isReply
+          isReply: mention.isReply,
+          model: mention.isGPT4 ? 'gpt-4' : 'gpt-3.5-turbo'
         }
 
         if (session.hasNetworkError) {
@@ -215,7 +216,7 @@ export async function respondToNewMentions({
                 'numFollowers',
                 'priorityScore'
               ),
-              ...pick(result, 'response', 'error')
+              ...pick(result, 'response', 'error', 'model')
             })
           } else {
             console.log(
@@ -228,7 +229,8 @@ export async function respondToNewMentions({
                 'promptUrl',
                 'isReply',
                 'numFollowers',
-                'priorityScore'
+                'priorityScore',
+                'isGPT4'
               )
             )
 
@@ -278,7 +280,8 @@ export async function respondToNewMentions({
               stripMentions: false,
               conversationId: result.chatgptConversationId,
               parentMessageId: result.chatgptParentMessageId,
-              accountId: result.chatgptAccountId
+              accountId: result.chatgptAccountId,
+              model: result.model
             })
 
             // console.log('chatgptResponse', chatgptResponse)
@@ -318,7 +321,8 @@ export async function respondToNewMentions({
               promptTweetId,
               prompt,
               imageFilePath,
-              response: result.response
+              response: result.response,
+              model: result.model
             })
 
             const mediaId = dryRun

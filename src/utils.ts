@@ -24,14 +24,14 @@ async function sendChatGPTMessageImpl(
     prompt,
     timeoutMs,
     conversationId,
-    parentMessageId
-  }: // promptPrefix
-  {
+    parentMessageId,
+    model
+  }: {
     prompt: string
     conversationId?: string
     parentMessageId?: string
     timeoutMs?: number
-    // promptPrefix?: string
+    model?: string
   },
   {
     chatgpt
@@ -42,8 +42,12 @@ async function sendChatGPTMessageImpl(
   return chatgpt.sendMessage(prompt, {
     timeoutMs,
     // conversationId,
-    parentMessageId
-    // promptPrefix
+    parentMessageId,
+    completionParams: model
+      ? {
+          model
+        }
+      : undefined
   })
 }
 
@@ -58,7 +62,8 @@ export async function getChatGPTResponse(
     parentMessageId,
     accountId,
     stripMentions = false,
-    timeoutMs = 3 * 60 * 1000 // 3 minutes
+    timeoutMs = 3 * 60 * 1000, // 3 minutes
+    model
   }: {
     chatgpt: ChatGPTAPI
     conversationId?: string
@@ -66,6 +71,7 @@ export async function getChatGPTResponse(
     accountId?: string
     stripMentions?: boolean
     timeoutMs?: number
+    model?: string
   }
 ): Promise<types.ChatGPTResponse> {
   let response: string
@@ -92,6 +98,7 @@ export async function getChatGPTResponse(
         conversationId,
         parentMessageId,
         accountId
+        // model // TODO
       })
 
       response = res.text
@@ -114,8 +121,8 @@ export async function getChatGPTResponse(
           prompt,
           timeoutMs,
           conversationId,
-          parentMessageId
-          // promptPrefix
+          parentMessageId,
+          model
         },
         {
           chatgpt
@@ -134,7 +141,8 @@ export async function getChatGPTResponse(
       response,
       conversationId,
       messageId,
-      accountId
+      accountId,
+      model
     })
     throw err
   }
