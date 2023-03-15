@@ -197,7 +197,8 @@ export async function renderResponse({
   userImageUrl = defaultUserImageUrl,
   username,
   outputPath,
-  htmlOutputPath
+  htmlOutputPath,
+  model
 }: {
   prompt?: string
   response: string
@@ -205,6 +206,7 @@ export async function renderResponse({
   username?: string
   outputPath?: string
   htmlOutputPath?: string
+  model?: string
 }): Promise<string> {
   const md = new MarkdownIt({
     highlight: function (str: string, lang: string) {
@@ -256,7 +258,8 @@ export async function renderResponse({
     userHeader = `<p class="user">${username}</p>`
   }
 
-  let responseUserHeader = `<p class="user">${twitterBotHandle}</p>`
+  const twitterBotModel = model ? ` (<i>${model}</i>)` : ''
+  let responseUserHeader = `<p class="user">${twitterBotHandle}${twitterBotModel}</p>`
 
   const promptHtml = prompt
     ? md

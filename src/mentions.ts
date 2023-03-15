@@ -309,7 +309,7 @@ export function getPrompt(text?: string): string {
     .replace(/^\s*@[a-zA-Z0-9_]+/g, '')
     .replace(/^\s*@[a-zA-Z0-9_]+/g, '')
     .replace(rUrl, '')
-    .replace(/ *#gpt4\b */gi, ' ')
+    .replace(/ *#gpt4 *$/gim, '')
     .trim()
     .replace(/^,\s*/, '')
     .trim()
