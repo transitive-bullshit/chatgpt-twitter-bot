@@ -314,7 +314,8 @@ export async function respondToNewMentions({
               prompt,
               response: result.response,
               userImageUrl: promptUser?.profile_image_url,
-              username: promptUsername
+              username: promptUsername,
+              model: result.model
             })
 
             console.log('prompt => image', {
