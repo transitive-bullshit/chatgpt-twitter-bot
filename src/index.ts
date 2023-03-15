@@ -1,10 +1,11 @@
-// import * as https from 'node:https'
+import * as https from 'node:https'
 import { EventEmitter } from 'node:events'
 
 import { ChatGPTAPI } from 'chatgpt'
 import delay from 'delay'
 import { Client as TwitterClient, auth } from 'twitter-api-sdk'
 import { TwitterApi } from 'twitter-api-v2'
+import { Agent, fetch, setGlobalDispatcher } from 'undici'
 
 import * as types from './types'
 // import { ChatGPTUnofficialProxyAPIPool } from './chatgpt-proxy-api-pool'
@@ -21,9 +22,14 @@ import {
   saveAllUserMentionCachesToDisk
 } from './twitter-mentions'
 
-// const agent = new https.Agent({
-//   keepAlive: true
-// })
+setGlobalDispatcher(
+  new Agent({
+    pipelining: 0,
+    headersTimeout: 300e3 * 2
+    // keepAlive: true,
+    // keepAliveInitialDelay: 60 * 1000 * 2
+  })
+)
 
 async function main() {
   const debug = !!process.env.DEBUG
@@ -127,19 +133,19 @@ async function main() {
 
   const chatgpt = new ChatGPTAPI({
     apiKey: process.env.OPENAI_API_KEY,
-    debug: false,
+    debug,
     getMessageById: async (id) => {
       return messageStore.get(id)
     },
     upsertMessage: async (message) => {
       await messageStore.set(message.id, message)
     },
-    fetch: async (url, options) => {
+    fetch: (async (url: string, options) => {
       return fetch(url, {
         keepalive: true,
         ...options
       })
-    }
+    }) as any
   })
 
   console.log()
@@ -262,8 +268,8 @@ async function main() {
           await delay(2 * 60 * 1000) // 2m
 
           if (session.isRateLimitedTwitter) {
-            console.log('sleeping longer for twitter rate limit (3m)...')
-            await delay(3 * 60 * 1000) // 3m
+            console.log('sleeping longer for twitter rate limit (5m)...')
+            await delay(5 * 60 * 1000) // 5m
           }
         }
 

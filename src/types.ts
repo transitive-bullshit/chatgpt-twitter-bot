@@ -47,6 +47,7 @@ export interface ChatGPTInteraction {
   chatgptParentMessageId?: string
   chatgptMessageId?: string
   chatgptAccountId?: string
+  model?: string
 
   error?: string
   isErrorFinal?: boolean

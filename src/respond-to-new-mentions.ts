@@ -596,7 +596,7 @@ export async function respondToNewMentions({
         }
       },
       {
-        concurrency: 3
+        concurrency: 2
       }
     )
   ).filter(Boolean)
