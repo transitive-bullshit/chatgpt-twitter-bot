@@ -315,7 +315,7 @@ export async function respondToNewMentions({
               response: result.response,
               userImageUrl: promptUser?.profile_image_url,
               username: promptUsername,
-              model: result.model
+              model: result.model !== 'gpt-3.5-turbo' ? result.model : undefined
             })
 
             console.log('prompt => image', {
