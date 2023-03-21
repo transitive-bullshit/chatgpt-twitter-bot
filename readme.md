@@ -1,3 +1,6 @@
+> **Note**
+> This project is not affiliated with OpenAI in any way. It is just a fun, open source side project that uses their API.
+
 <p align="center">
   <a href="https://twitter.com/ChatGPTBot">
     <img alt="Example Twitter thread using @ChatGPTBot" src="/media/demo.jpg">
@@ -15,9 +18,6 @@
 - [Note](#note)
 - [Related](#related)
 - [License](#license)
-
-> **Note**
-> This project is not affiliated with OpenAI in any way. It is just a fun, open source side project that uses their API.
 
 ## Intro
 
