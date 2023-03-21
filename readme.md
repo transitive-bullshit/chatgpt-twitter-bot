@@ -6,7 +6,7 @@
 
 # ChatGPT Twitter Bot <!-- omit in toc -->
 
-> Twitter bot powered by OpenAI's ChatGPT.
+> Twitter bot powered by OpenAI's ChatGPT API.
 
 [![Build Status](https://github.com/transitive-bullshit/chatgpt-twitter-bot/actions/workflows/test.yml/badge.svg)](https://github.com/transitive-bullshit/chatgpt-twitter-bot/actions/workflows/test.yml) [![MIT License](https://img.shields.io/badge/license-MIT-blue)](https://github.com/transitive-bullshit/chatgpt-twitter-bot/blob/main/license) [![Prettier Code Formatting](https://img.shields.io/badge/code_style-prettier-brightgreen.svg)](https://prettier.io)
 
@@ -15,6 +15,9 @@
 - [Note](#note)
 - [Related](#related)
 - [License](#license)
+
+> **Note**
+> This project is not affiliated with OpenAI in any way. It is just a fun, open source side project that uses their API.
 
 ## Intro
 
@@ -51,5 +54,8 @@ The ChatGPT response will be split up into multiple tweet-sized replies.
 ## License
 
 MIT © [Travis Fischer](https://transitivebullsh.it)
+
+> **Note**
+> This project is not affiliated with OpenAI in any way. It is just a fun, open source side project that uses their API.
 
 If you found this project interesting, please consider [sponsoring me](https://github.com/sponsors/transitive-bullshit) or <a href="https://twitter.com/transitive_bs">following me on twitter <img src="https://storage.googleapis.com/saasify-assets/twitter-logo.svg" alt="twitter" height="24px" align="center"></a>
