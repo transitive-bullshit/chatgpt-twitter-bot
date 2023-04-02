@@ -198,7 +198,7 @@ async function main() {
         maxNumMentionsToProcess
       })
 
-      if (session.sinceMentionId) {
+      if (session.sinceMentionId && !debugTweet) {
         sinceMentionId = maxTwitterId(sinceMentionId, session.sinceMentionId)
 
         if (!defaultSinceMentionId && !resolveAllMentions) {
@@ -280,8 +280,8 @@ async function main() {
 
         if (!session.interactions?.length) {
           // sleep if there were no mentions to process
-          console.log('sleeping for 30s...')
-          await delay(30000)
+          console.log('sleeping for 15s...')
+          await delay(15000)
         } else {
           // still sleep if there are active mentions because of rate limits...
           console.log('sleeping for 5s...')
