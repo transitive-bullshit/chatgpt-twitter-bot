@@ -23,7 +23,9 @@ export const defaultMaxNumMentionsToProcessPerBatch = 10
 // tweets that try to break the bot...
 export const tweetIgnoreList = new Set([
   '1599344387401863174',
-  '1604326985416613888'
+  '1604326985416613888',
+  '1643945307095420930',
+  '1645615915088896000'
 ])
 
 // ignore known bots; we don't want them endlessly replying to each other

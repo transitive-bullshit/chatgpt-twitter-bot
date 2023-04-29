@@ -39,6 +39,7 @@ async function main() {
         interaction.role === 'assistant' &&
         !interaction.error &&
         tweetIdComparator(interaction.promptTweetId, minTweetId) === 1
+      // && !interaction.promptLanguage
     )
   // console.log(interactions)
 
@@ -47,8 +48,8 @@ async function main() {
 
     await saveJsonFile(
       path.join(cacheDir, 'chatgpt-twitter-bot-export.json'),
-      interactions
-      // { pretty: false }
+      interactions,
+      { pretty: false }
     )
 
     return
@@ -237,23 +238,25 @@ async function main() {
               const original = stringify(interaction)
 
               if (interaction.role === 'assistant' && !interaction.error) {
-                try {
-                  const languageScores = await detectLanguage(
-                    interaction.prompt
-                  )
+                if (!interaction.promptLanguage) {
+                  try {
+                    const languageScores = await detectLanguage(
+                      interaction.prompt
+                    )
 
-                  console.log(
-                    'lang',
-                    interaction.prompt,
-                    languageScores.slice(0, 3)
-                  )
+                    console.log(
+                      'lang',
+                      interaction.prompt,
+                      languageScores.slice(0, 3)
+                    )
 
-                  const promptLanguage = languageScores[0].label
-                  const promptLanguageScore = languageScores[0].score
-                  interaction.promptLanguage = promptLanguage
-                  interaction.promptLanguageScore = promptLanguageScore
-                } catch (err) {
-                  console.warn('error detecting language', err.toString())
+                    const promptLanguage = languageScores[0].label
+                    const promptLanguageScore = languageScores[0].score
+                    interaction.promptLanguage = promptLanguage
+                    interaction.promptLanguageScore = promptLanguageScore
+                  } catch (err) {
+                    console.warn('error detecting language', err.toString())
+                  }
                 }
 
                 const promptTweetId = interaction.promptTweetId

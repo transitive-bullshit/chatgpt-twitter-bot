@@ -587,6 +587,10 @@ export async function respondToNewMentions({
           }
 
           result.error = err.toString() || 'unknown error'
+          if (/error creating tweet: 400/i.test(result.error)) {
+            isFinal = true
+          }
+
           result.isErrorFinal = !!isFinal
 
           console.log('interaction error', result)
