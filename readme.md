@@ -1,5 +1,4 @@
-> **Note**
-> **I rewrote and significantly cleaned up this project here: https://github.com/dexaai/xbot**
+> **Note**: **I rewrote and significantly cleaned up this project here: https://github.com/dexaai/xbot**
 
 ---
 
