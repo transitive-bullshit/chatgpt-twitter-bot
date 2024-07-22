@@ -51,7 +51,8 @@ The ChatGPT response will be split up into multiple tweet-sized replies.
 
 ## Related
 
-- Powered by the [Node.js ChatGPT API](https://github.com/transitive-bullshit/chatgpt-api)
+- V2 of this project is here: https://github.com/dexaai/xbot
+- Powered by [Agentic](https://github.com/transitive-bullshit/agentic)
 
 ## License
 
