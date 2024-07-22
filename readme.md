@@ -1,5 +1,7 @@
 > **Note**
-> This project is not affiliated with OpenAI in any way. It is just a fun, open source side project that uses their API.
+> **I rewrote and significantly cleaned up this project here: https://github.com/dexaai/xbot**
+
+---
 
 <p align="center">
   <a href="https://twitter.com/ChatGPTBot">
