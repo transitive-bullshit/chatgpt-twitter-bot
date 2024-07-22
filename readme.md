@@ -1,4 +1,5 @@
-> **Note**: **I rewrote and significantly cleaned up this project here: https://github.com/dexaai/xbot**
+> [!IMPORTANT]
+> I highly recommend you use V2 of this project, which is a significant rewrite: https://github.com/dexaai/xbot
 
 ---
 
